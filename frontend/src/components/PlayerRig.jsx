@@ -5,8 +5,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
 const SPEED = 3.2;
-const ACCEL = 11;
-const DAMPING = 8;
 const AVATAR_YAW_OFFSET = Math.PI;
 const LOOK_SENSITIVITY = 0.005;
 const MIN_PITCH = -0.85;
@@ -197,7 +195,6 @@ export default function PlayerRig({ mode }) {
   const pitchRef = useRef(-0.12);
   const draggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
-  const velocityRef = useRef(new THREE.Vector3());
   const moveAmountRef = useRef(0);
   const walkTimeRef = useRef(0);
 
@@ -285,25 +282,18 @@ export default function PlayerRig({ mode }) {
     const dx = (moveRight ? 1 : 0) - (moveLeft ? 1 : 0);
     const dz = (moveBackward ? 1 : 0) - (moveForward ? 1 : 0);
 
+    let speed = 0;
     if (dx !== 0 || dz !== 0) {
       moveDir.set(dx, 0, dz).normalize();
-      const targetVx = moveDir.x * SPEED;
-      const targetVz = moveDir.z * SPEED;
-      velocityRef.current.x += (targetVx - velocityRef.current.x) * Math.min(1, delta * ACCEL);
-      velocityRef.current.z += (targetVz - velocityRef.current.z) * Math.min(1, delta * ACCEL);
+      positionRef.current.x = clamp(positionRef.current.x + moveDir.x * SPEED * delta, BOUNDS.minX, BOUNDS.maxX);
+      positionRef.current.z = clamp(positionRef.current.z + moveDir.z * SPEED * delta, BOUNDS.minZ, BOUNDS.maxZ);
+      speed = SPEED;
 
       const targetYaw = Math.atan2(moveDir.x, -moveDir.z);
       const diff = ((targetYaw - yawRef.current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       yawRef.current += diff * Math.min(1, delta * 7.5);
-    } else {
-      velocityRef.current.x += (0 - velocityRef.current.x) * Math.min(1, delta * DAMPING);
-      velocityRef.current.z += (0 - velocityRef.current.z) * Math.min(1, delta * DAMPING);
     }
 
-    positionRef.current.x = clamp(positionRef.current.x + velocityRef.current.x * delta, BOUNDS.minX, BOUNDS.maxX);
-    positionRef.current.z = clamp(positionRef.current.z + velocityRef.current.z * delta, BOUNDS.minZ, BOUNDS.maxZ);
-
-    const speed = Math.hypot(velocityRef.current.x, velocityRef.current.z);
     moveAmountRef.current = Math.min(1, speed / SPEED);
     walkTimeRef.current += delta * (0.4 + moveAmountRef.current * 1.2);
 
