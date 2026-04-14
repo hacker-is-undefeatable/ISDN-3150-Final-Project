@@ -1,5 +1,8 @@
 export default function UI({
   escaped,
+  cameraMode,
+  autoMove,
+  currentMoveKey,
   selectedObject,
   currentPuzzle,
   answer,
@@ -11,10 +14,34 @@ export default function UI({
   onAnswerChange,
   onSubmitAnswer,
   onHint,
+  onToggleCameraMode,
+  onToggleAutoMove,
 }) {
   return (
     <div className="ui-panel">
       <h1>AI 3D Escape Room</h1>
+      <div className="mode-row">
+        <span>
+          <strong>Mode:</strong> {cameraMode === "first-person" ? "First Person" : "Third Person"}
+        </span>
+        <button className="mode-button" onClick={onToggleCameraMode}>
+          Switch Mode
+        </button>
+      </div>
+      <div className="mode-row">
+        <span>
+          <strong>Auto Move:</strong> {autoMove ? "Enabled" : "Disabled"}
+        </span>
+        <button className="mode-button" onClick={onToggleAutoMove}>
+          {autoMove ? "Disable" : "Enable"}
+        </button>
+      </div>
+      <p className="controls-tip">Move with WASD or arrow keys.</p>
+      {autoMove && (
+        <p className="controls-tip">
+          AI movement output: <strong>{currentMoveKey}</strong>
+        </p>
+      )}
 
       {escaped && <div className="win-banner">You Escaped!</div>}
 

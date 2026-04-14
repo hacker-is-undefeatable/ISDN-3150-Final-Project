@@ -91,6 +91,29 @@ body,
   font-size: 1.2rem;
 }
 
+.mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mode-button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #355f96;
+  color: #fff;
+  cursor: pointer;
+}
+
+.controls-tip {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  color: #344a56;
+}
+
 .puzzle-block {
   margin-top: 8px;
 }

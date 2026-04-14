@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import Room from "./components/Room";
 import UI from "./components/UI";
+import PlayerRig from "./components/PlayerRig";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -26,6 +26,9 @@ async function fetchJson(url, options = {}) {
 export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
+  const [cameraMode, setCameraMode] = useState("third-person");
+  const [autoMove, setAutoMove] = useState(true);
+  const [currentMoveKey, setCurrentMoveKey] = useState("W");
   const [doorUnlocked, setDoorUnlocked] = useState(false);
   const [safeOpened, setSafeOpened] = useState(false);
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
@@ -47,6 +50,33 @@ export default function App() {
 
   const escaped = safeOpened && doorUnlocked;
 
+  const movementTarget = useMemo(() => {
+    if (!safeOpened) {
+      return { x: 0, z: -4.2 };
+    }
+    if (!doorUnlocked) {
+      return { x: -2.8, z: -3.25 };
+    }
+    return { x: 2.6, z: -4.2 };
+  }, [safeOpened, doorUnlocked]);
+
+  const movementObstacles = useMemo(() => {
+    const obstacles = [
+      { x: -2.8, z: -4.3, radius: 1.0 },
+      { x: 2.6, z: -4.8, radius: 0.8 },
+      { x: 0.0, z: -4.85, radius: 0.75 },
+    ];
+
+    if (doorUnlocked) {
+      return obstacles.filter((item) => item.x !== 2.6);
+    }
+    return obstacles;
+  }, [doorUnlocked]);
+
+  const toggleCameraMode = () => {
+    setCameraMode((prev) => (prev === "first-person" ? "third-person" : "first-person"));
+  };
+
   const startGame = async () => {
     try {
       setStartingGame(true);
@@ -62,6 +92,7 @@ export default function App() {
       setSelectedObject(null);
       setAnswer("");
       setHint("");
+      setCurrentMoveKey("W");
       setGameStarted(true);
     } catch (error) {
       setFeedback(`Error starting game: ${error.message}`);
@@ -175,11 +206,18 @@ export default function App() {
               safeOpened={safeOpened}
               onObjectClick={loadPuzzle}
             />
-            <OrbitControls enablePan={false} maxPolarAngle={Math.PI / 2.1} />
+            <PlayerRig
+              mode={cameraMode}
+              autoMove={autoMove}
+              target={movementTarget}
+              obstacles={movementObstacles}
+              onAutoKeyChange={setCurrentMoveKey}
+            />
           </Canvas>
 
           <UI
             escaped={escaped}
+            cameraMode={cameraMode}
             selectedObject={selectedObject}
             currentPuzzle={currentPuzzle}
             answer={answer}
@@ -191,11 +229,17 @@ export default function App() {
             onAnswerChange={setAnswer}
             onSubmitAnswer={submitAnswer}
             onHint={getHint}
+            onToggleCameraMode={toggleCameraMode}
+            autoMove={autoMove}
+            onToggleAutoMove={() => setAutoMove((prev) => !prev)}
+            currentMoveKey={currentMoveKey}
           />
 
           <div className="status-badge">
             <span>Door: {doorUnlocked ? "Unlocked" : "Locked"}</span>
             <span>Safe: {safeOpened ? "Opened" : "Locked"}</span>
+            <span>Auto: {autoMove ? "On" : "Off"}</span>
+            <span>Key: {currentMoveKey}</span>
           </div>
         </>
       )}
