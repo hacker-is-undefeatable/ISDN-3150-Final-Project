@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 
 const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment.glb";
 const TERRAIN_SCALE = 1;
 const GROUND_NAME_PATTERN = /(terrain|ground|island|land|floor|hill|path|cliff|rock)/i;
 const MAX_WALL_COLLIDERS = 18;
+const DEBUG_TERRAIN_MESHES = import.meta.env.DEV;
 
 export default function Terrain({ collidersRef }) {
   const { scene } = useGLTF(TERRAIN_MODEL_URL);
+  const loggedMeshNamesRef = useRef(false);
 
   useEffect(() => {
     scene.scale.setScalar(TERRAIN_SCALE);
@@ -33,6 +35,21 @@ export default function Terrain({ collidersRef }) {
     });
 
     const sorted = [...meshCandidates].sort((a, b) => b.triangles - a.triangles);
+
+    if (DEBUG_TERRAIN_MESHES && !loggedMeshNamesRef.current) {
+      const meshDebugRows = sorted.map(({ mesh, triangles }) => ({
+        name: mesh.name || "(unnamed)",
+        triangles: Math.round(triangles),
+      }));
+
+      console.table(meshDebugRows);
+      if (typeof window !== "undefined") {
+        window.__terrainMeshRows = meshDebugRows;
+      }
+
+      loggedMeshNamesRef.current = true;
+    }
+
     const namedGroundCandidates = sorted.filter(({ mesh }) =>
       GROUND_NAME_PATTERN.test(mesh.name)
     );
