@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -11,12 +11,21 @@ const MIN_PITCH = -0.85;
 const MAX_PITCH = 0.75;
 const WALK_CYCLE_FREQUENCY = 6;
 const WALK_CYCLE_SPEED = 1.4;
+const RAYCAST_HEIGHT = 60;
+const FEET_HEIGHT_OFFSET = 0.02;
+const CHARACTER_ROOT_OFFSET = 1.05;
+const CAMERA_HEIGHT_OFFSET = 1.6;
+const GROUND_SAMPLE_INTERVAL = 1 / 15;
+const GROUND_NORMAL_MIN_Y = 0.35;
+const WALL_NORMAL_MAX_Y = 0.45;
+const COLLISION_PADDING = 0.16;
+const COLLISION_PROBE_HEIGHTS = [0.45, 0.95, 1.35];
 
 const BOUNDS = {
-  minX: -4.2,
-  maxX: 4.2,
-  minZ: -4.2,
-  maxZ: 4.2,
+  minX: -40,
+  maxX: 40,
+  minZ: -40,
+  maxZ: 40,
 };
 
 function clamp(v, min, max) {
@@ -90,7 +99,7 @@ function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef })
 
     if (vrmScene) {
       const bob = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.03 * move;
-      vrmScene.position.set(pos.x, bob, pos.z);
+      vrmScene.position.set(pos.x, pos.y + CHARACTER_ROOT_OFFSET + bob, pos.z);
       vrmScene.rotation.y = yaw + AVATAR_YAW_OFFSET;
       vrmScene.visible = visible;
     }
@@ -138,7 +147,7 @@ function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef })
 
     if (fallbackRef.current) {
       fallbackRef.current.visible = visible && !vrmScene;
-      fallbackRef.current.position.set(pos.x, 1, pos.z);
+      fallbackRef.current.position.set(pos.x, pos.y + CHARACTER_ROOT_OFFSET, pos.z);
       fallbackRef.current.rotation.y = yaw;
     }
   });
@@ -156,7 +165,7 @@ function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef })
 
 /* ===================== PLAYER RIG ===================== */
 
-export default function PlayerRig({ mode }) {
+export default function PlayerRig({ mode, terrainCollidersRef }) {
   const { camera } = useThree();
 
   const pressed = useRef(new Set());
@@ -171,6 +180,110 @@ export default function PlayerRig({ mode }) {
 
   const draggingRef = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const rayOriginRef = useRef(new THREE.Vector3());
+  const rayDirectionRef = useRef(new THREE.Vector3(0, -1, 0));
+  const collisionDirectionRef = useRef(new THREE.Vector3());
+  const collisionNormalRef = useRef(new THREE.Vector3());
+  const collisionOriginRef = useRef(new THREE.Vector3());
+  const intersectionsRef = useRef([]);
+  const groundStateRef = useRef({
+    y: 0,
+    sampleTimer: 0,
+    lastX: Number.NaN,
+    lastZ: Number.NaN,
+  });
+
+  const getColliderBuckets = () => {
+    const colliders = terrainCollidersRef?.current;
+
+    if (Array.isArray(colliders)) {
+      return {
+        ground: colliders,
+        walls: colliders,
+      };
+    }
+
+    return {
+      ground: colliders?.ground?.length ? colliders.ground : colliders?.walls || [],
+      walls: colliders?.walls?.length ? colliders.walls : colliders?.ground || [],
+    };
+  };
+
+  const isWalkableSurface = (intersection) => {
+    if (!intersection?.face) return true;
+
+    const normal = collisionNormalRef.current
+      .copy(intersection.face.normal)
+      .transformDirection(intersection.object.matrixWorld);
+
+    return normal.y >= GROUND_NORMAL_MIN_Y;
+  };
+
+  const getGroundY = (x, z) => {
+    const { ground, walls } = getColliderBuckets();
+    const colliders = ground.length ? ground : walls;
+    if (!colliders.length) return groundStateRef.current.y;
+
+    const raycaster = raycasterRef.current;
+    rayOriginRef.current.set(x, RAYCAST_HEIGHT, z);
+    raycaster.set(rayOriginRef.current, rayDirectionRef.current);
+    raycaster.near = 0;
+    raycaster.far = RAYCAST_HEIGHT * 2;
+
+    intersectionsRef.current.length = 0;
+    const intersections = raycaster.intersectObjects(colliders, true, intersectionsRef.current);
+    for (const intersection of intersections) {
+      if (isWalkableSurface(intersection)) {
+        return intersection.point.y;
+      }
+    }
+
+    return groundStateRef.current.y;
+  };
+
+  const hasForwardCollision = (deltaX, deltaZ) => {
+    const distance = Math.hypot(deltaX, deltaZ);
+    if (distance < 0.0001) return false;
+
+    const { walls } = getColliderBuckets();
+    if (!walls.length) return false;
+
+    const raycaster = raycasterRef.current;
+    collisionDirectionRef.current.set(deltaX / distance, 0, deltaZ / distance);
+    raycaster.near = 0;
+    raycaster.far = distance + COLLISION_PADDING;
+
+    for (const probeHeight of COLLISION_PROBE_HEIGHTS) {
+      collisionOriginRef.current.set(
+        positionRef.current.x,
+        positionRef.current.y + probeHeight,
+        positionRef.current.z
+      );
+
+      raycaster.set(collisionOriginRef.current, collisionDirectionRef.current);
+      intersectionsRef.current.length = 0;
+      const intersections = raycaster.intersectObjects(walls, true, intersectionsRef.current);
+
+      for (const intersection of intersections) {
+        if (!intersection.face) {
+          return true;
+        }
+
+        const normal = collisionNormalRef.current
+          .copy(intersection.face.normal)
+          .transformDirection(intersection.object.matrixWorld);
+
+        // Treat near-vertical geometry as blocking walls.
+        if (Math.abs(normal.y) <= WALL_NORMAL_MAX_Y) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
 
   /* -------- INPUT -------- */
 
@@ -247,7 +360,26 @@ export default function PlayerRig({ mode }) {
       moveDir.addScaledVector(camForward, -dz);
       moveDir.normalize();
 
-      positionRef.current.addScaledVector(moveDir, SPEED * delta);
+      const stepDistance = SPEED * delta;
+      const moveX = moveDir.x * stepDistance;
+      const moveZ = moveDir.z * stepDistance;
+      let moved = false;
+
+      if (!hasForwardCollision(moveX, moveZ)) {
+        positionRef.current.x += moveX;
+        positionRef.current.z += moveZ;
+        moved = true;
+      } else {
+        // Try axis-by-axis movement as a simple sliding behavior.
+        if (Math.abs(moveX) > 0.0001 && !hasForwardCollision(moveX, 0)) {
+          positionRef.current.x += moveX;
+          moved = true;
+        }
+        if (Math.abs(moveZ) > 0.0001 && !hasForwardCollision(0, moveZ)) {
+          positionRef.current.z += moveZ;
+          moved = true;
+        }
+      }
 
       positionRef.current.x = clamp(positionRef.current.x, BOUNDS.minX, BOUNDS.maxX);
       positionRef.current.z = clamp(positionRef.current.z, BOUNDS.minZ, BOUNDS.maxZ);
@@ -255,10 +387,22 @@ export default function PlayerRig({ mode }) {
       const targetYaw = Math.atan2(moveDir.x, moveDir.z);
       yawRef.current += shortestAngleDiff(targetYaw, yawRef.current) * delta * 10;
 
-      moveAmountRef.current = 1;
+      moveAmountRef.current = moved ? 1 : 0;
     } else {
       moveAmountRef.current = 0;
     }
+
+    const groundState = groundStateRef.current;
+    groundState.sampleTimer += delta;
+
+    if (groundState.sampleTimer >= GROUND_SAMPLE_INTERVAL || Number.isNaN(groundState.lastX)) {
+      groundState.y = getGroundY(positionRef.current.x, positionRef.current.z);
+      groundState.lastX = positionRef.current.x;
+      groundState.lastZ = positionRef.current.z;
+      groundState.sampleTimer = 0;
+    }
+
+    positionRef.current.y = groundState.y + FEET_HEIGHT_OFFSET;
 
     walkTimeRef.current += delta * (0.5 + moveAmountRef.current * WALK_CYCLE_SPEED);
 
@@ -275,7 +419,7 @@ export default function PlayerRig({ mode }) {
     if (mode === "first-person") {
       const pos = new THREE.Vector3(
         positionRef.current.x,
-        1.6 + headBob,
+        positionRef.current.y + CAMERA_HEIGHT_OFFSET + headBob,
         positionRef.current.z
       );
 
@@ -299,11 +443,11 @@ export default function PlayerRig({ mode }) {
     const camPos = new THREE.Vector3()
       .copy(positionRef.current)
       .addScaledVector(orbit, -3.5)
-      .add(new THREE.Vector3(0, 1.6 + headBob, 0));
+      .add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET + headBob, 0));
 
     const lookAt = new THREE.Vector3()
       .copy(positionRef.current)
-      .add(new THREE.Vector3(0, 1.2, 0));
+      .add(new THREE.Vector3(0, CHARACTER_ROOT_OFFSET + 0.2, 0));
 
     camera.position.lerp(camPos, delta * 6);
     camera.lookAt(lookAt);

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import Room from "./components/Room";
 import UI from "./components/UI";
 import PlayerRig from "./components/PlayerRig";
+import Terrain from "./components/Terrain";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const START_RESET_TIMEOUT_MS = 4000;
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, {
@@ -23,7 +24,18 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Request timeout")), ms);
+    }),
+  ]);
+}
+
 export default function App() {
+  const terrainCollidersRef = useRef([]);
+
   const [gameStarted, setGameStarted] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
   const [cameraMode, setCameraMode] = useState("third-person");
@@ -38,14 +50,6 @@ export default function App() {
   const [checkingAnswer, setCheckingAnswer] = useState(false);
   const [fetchingHint, setFetchingHint] = useState(false);
 
-  const objectSolved = useMemo(() => {
-    return {
-      painting: safeOpened,
-      safe: doorUnlocked,
-      door: doorUnlocked,
-    };
-  }, [safeOpened, doorUnlocked]);
-
   const escaped = safeOpened && doorUnlocked;
 
   const toggleCameraMode = () => {
@@ -53,46 +57,31 @@ export default function App() {
   };
 
   const startGame = async () => {
+    // Enter gameplay immediately so start is responsive even if backend is slow.
+    setGameStarted(true);
+    setDoorUnlocked(false);
+    setSafeOpened(false);
+    setCurrentPuzzle(null);
+    setSelectedObject(null);
+    setAnswer("");
+    setHint("");
+
     try {
       setStartingGame(true);
       setFeedback("");
 
-      await fetchJson(`${API_BASE_URL}/reset_game`, {
-        method: "POST",
-      });
-
-      setDoorUnlocked(false);
-      setSafeOpened(false);
-      setCurrentPuzzle(null);
-      setSelectedObject(null);
-      setAnswer("");
-      setHint("");
-      setGameStarted(true);
+      await withTimeout(
+        fetchJson(`${API_BASE_URL}/reset_game`, {
+          method: "POST",
+        }),
+        START_RESET_TIMEOUT_MS
+      );
     } catch (error) {
-      setFeedback(`Error starting game: ${error.message}`);
+      setFeedback(
+        `Started in local mode (backend reset skipped): ${error.message}`
+      );
     } finally {
       setStartingGame(false);
-    }
-  };
-
-  const loadPuzzle = async (objectType) => {
-    try {
-      setLoadingPuzzle(true);
-      setSelectedObject(objectType);
-      setFeedback("");
-      setHint("");
-      setAnswer("");
-
-      const data = await fetchJson(`${API_BASE_URL}/generate_puzzle`, {
-        method: "POST",
-        body: JSON.stringify({ object_type: objectType }),
-      });
-
-      setCurrentPuzzle(data.question);
-    } catch (error) {
-      setFeedback(`Error loading puzzle: ${error.message}`);
-    } finally {
-      setLoadingPuzzle(false);
     }
   };
 
@@ -173,14 +162,19 @@ export default function App() {
         <>
           <Canvas camera={{ position: [0, 3, 8], fov: 60 }}>
             <color attach="background" args={["#101418"]} />
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[4, 8, 2]} intensity={1.2} castShadow />
-            <Room
-              doorUnlocked={doorUnlocked}
-              safeOpened={safeOpened}
-              onObjectClick={loadPuzzle}
+            <ambientLight intensity={0.35} />
+            <hemisphereLight
+              skyColor="#bfd6f6"
+              groundColor="#344038"
+              intensity={0.7}
             />
-            <PlayerRig mode={cameraMode} />
+            <directionalLight
+              position={[12, 20, 10]}
+              intensity={1.1}
+            />
+            <directionalLight position={[-8, 10, -12]} intensity={0.35} />
+            <Terrain collidersRef={terrainCollidersRef} />
+            <PlayerRig mode={cameraMode} terrainCollidersRef={terrainCollidersRef} />
           </Canvas>
 
           <UI
@@ -199,11 +193,6 @@ export default function App() {
             onHint={getHint}
             onToggleCameraMode={toggleCameraMode}
           />
-
-          <div className="status-badge">
-            <span>Door: {doorUnlocked ? "Unlocked" : "Locked"}</span>
-            <span>Safe: {safeOpened ? "Opened" : "Locked"}</span>
-          </div>
         </>
       )}
     </div>
