@@ -5,10 +5,13 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
 const SPEED = 3.2;
-const AVATAR_YAW_OFFSET = Math.PI;
+const AVATAR_YAW_OFFSET = 0;
 const LOOK_SENSITIVITY = 0.005;
 const MIN_PITCH = -0.85;
 const MAX_PITCH = 0.75;
+const WALK_CYCLE_FREQUENCY = 6;
+const WALK_CYCLE_SPEED = 1.4;
+
 const BOUNDS = {
   minX: -4.2,
   maxX: 4.2,
@@ -16,151 +19,116 @@ const BOUNDS = {
   maxZ: 4.2,
 };
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v));
 }
+
+function shortestAngleDiff(target, current) {
+  return ((target - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+}
+
+/* ===================== VRM AVATAR ===================== */
 
 function setBlink(vrm, value) {
   if (!vrm) return;
-
   const manager = vrm.expressionManager;
-  if (manager) {
-    if (typeof manager.setValue === "function") {
-      manager.setValue("blink", value);
-      return;
-    }
-  }
-
-  const proxy = vrm.blendShapeProxy;
-  if (proxy && proxy.setValue && proxy.getBlendShapeTrackName) {
-    const name = proxy.getBlendShapeTrackName("blink");
-    if (name) {
-      proxy.setValue(name, value);
-    }
-  }
+  if (manager?.setValue) manager.setValue("blink", value);
 }
 
 function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef }) {
   const [vrmScene, setVrmScene] = useState(null);
   const [vrmInstance, setVrmInstance] = useState(null);
+
   const fallbackRef = useRef();
   const idleBoneRotationsRef = useRef(null);
   const blinkClockRef = useRef(0);
-  const nextBlinkRef = useRef(1.3 + Math.random() * 2.0);
+  const nextBlinkRef = useRef(1 + Math.random() * 2);
   const blinkProgressRef = useRef(0);
 
-  const armNodesRef = useRef({
-    leftUpperArm: null,
-    rightUpperArm: null,
-    leftLowerArm: null,
-    rightLowerArm: null,
-    leftUpperLeg: null,
-    rightUpperLeg: null,
-    hips: null,
-  });
+  const bonesRef = useRef({});
 
   useEffect(() => {
-    let mounted = true;
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
-    loader.load(
-      "/model/model.vrm",
-      (gltf) => {
-        if (!mounted) return;
-        const vrm = gltf.userData.vrm;
-        if (!vrm) return;
+    loader.load("/model/model.vrm", (gltf) => {
+      const vrm = gltf.userData.vrm;
+      if (!vrm) return;
 
-        vrm.scene.scale.setScalar(1.35);
-        vrm.scene.rotation.y = AVATAR_YAW_OFFSET;
+      vrm.scene.scale.setScalar(1.35);
+      vrm.scene.rotation.y = AVATAR_YAW_OFFSET;
 
-        const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name) || null;
-        armNodesRef.current = {
-          leftUpperArm: getBone("leftUpperArm"),
-          rightUpperArm: getBone("rightUpperArm"),
-          leftLowerArm: getBone("leftLowerArm"),
-          rightLowerArm: getBone("rightLowerArm"),
-          leftUpperLeg: getBone("leftUpperLeg"),
-          rightUpperLeg: getBone("rightUpperLeg"),
-          hips: getBone("hips"),
-        };
+      const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
 
-        const idle = {};
-        Object.entries(armNodesRef.current).forEach(([key, node]) => {
-          if (node) idle[key] = node.quaternion.clone();
-        });
-        idleBoneRotationsRef.current = idle;
+      const bones = {
+        leftUpperArm: getBone("leftUpperArm"),
+        rightUpperArm: getBone("rightUpperArm"),
+        leftUpperLeg: getBone("leftUpperLeg"),
+        rightUpperLeg: getBone("rightUpperLeg"),
+        hips: getBone("hips"),
+      };
 
-        setVrmScene(vrm.scene);
-        setVrmInstance(vrm);
-      },
-      undefined,
-      () => {
-        if (!mounted) return;
-        setVrmScene(null);
-      }
-    );
+      bonesRef.current = bones;
 
-    return () => {
-      mounted = false;
-    };
+      const idle = {};
+      Object.entries(bones).forEach(([k, b]) => {
+        if (b) idle[k] = b.quaternion.clone();
+      });
+
+      idleBoneRotationsRef.current = idle;
+
+      setVrmScene(vrm.scene);
+      setVrmInstance(vrm);
+    });
   }, []);
 
   useFrame((_, delta) => {
     const pos = positionRef.current;
     const yaw = yawRef.current;
-    const moveAmount = moveAmountRef.current;
-    const walkTime = walkTimeRef.current;
+    const move = moveAmountRef.current;
+    const t = walkTimeRef.current;
 
     if (vrmScene) {
-      vrmScene.visible = visible;
-      const bodyBob = Math.sin(walkTime * 7.8) * 0.03 * moveAmount;
-      vrmScene.position.set(pos.x, bodyBob, pos.z);
+      const bob = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.03 * move;
+      vrmScene.position.set(pos.x, bob, pos.z);
       vrmScene.rotation.y = yaw + AVATAR_YAW_OFFSET;
+      vrmScene.visible = visible;
     }
 
-    if (vrmInstance) {
-      const idle = idleBoneRotationsRef.current;
-      const bones = armNodesRef.current;
-      if (idle) {
-        const swing = Math.sin(walkTime * 7.8) * 0.16 * moveAmount;
-        const legSwing = Math.sin(walkTime * 7.8) * 0.3 * moveAmount;
+    if (vrmInstance && idleBoneRotationsRef.current) {
+      const swing = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.2 * move;
+      const leg = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.35 * move;
 
-        const applyBone = (boneKey, targetEuler) => {
-          const node = bones[boneKey];
-          const base = idle[boneKey];
-          if (!node || !base) return;
+      const apply = (bone, euler) => {
+        const node = bonesRef.current[bone];
+        const base = idleBoneRotationsRef.current[bone];
+        if (!node || !base) return;
 
-          const targetQuat = new THREE.Quaternion().setFromEuler(targetEuler);
-          targetQuat.multiply(base);
-          node.quaternion.slerp(targetQuat, Math.min(1, delta * 9));
-        };
+        const q = new THREE.Quaternion().setFromEuler(euler).multiply(base);
+        node.quaternion.slerp(q, Math.min(1, delta * 8));
+      };
 
-        // Arms lowered and resting by the sides with subtle walk swing.
-        applyBone("leftUpperArm", new THREE.Euler(0- 3*swing, 0 - 5*swing, -1.1));
-        applyBone("rightUpperArm", new THREE.Euler(0+ 3*swing , 0 - 5*swing, 1.1));
-        applyBone("leftLowerArm", new THREE.Euler(0, 0, 0));
-        applyBone("rightLowerArm", new THREE.Euler(0, 0, 0));
+      apply("leftUpperArm", new THREE.Euler(-swing, 0, -1.1));
+      apply("rightUpperArm", new THREE.Euler(swing, 0, 1.1));
+      apply("leftUpperLeg", new THREE.Euler(leg, 0, 0));
+      apply("rightUpperLeg", new THREE.Euler(-leg, 0, 0));
+      apply("hips", new THREE.Euler(Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.02 * move, 0, 0));
 
-        // Light leg animation while walking.
-        applyBone("leftUpperLeg", new THREE.Euler(legSwing, 0, 0));
-        applyBone("rightUpperLeg", new THREE.Euler(-legSwing, 0, 0));
-        applyBone("hips", new THREE.Euler(Math.sin(walkTime * 7.8) * 0.02 * moveAmount, 0, 0));
-      }
-
-      // Procedural blink.
+      // blink
       blinkClockRef.current += delta;
-      if (blinkClockRef.current >= nextBlinkRef.current) {
+      if (blinkClockRef.current > nextBlinkRef.current) {
         blinkProgressRef.current += delta * 10;
-        const openClose = blinkProgressRef.current <= 0.5
-          ? blinkProgressRef.current * 2
-          : (1 - blinkProgressRef.current) * 2;
-        setBlink(vrmInstance, Math.max(0, Math.min(1, openClose)));
+        const v =
+          blinkProgressRef.current < 0.5
+            ? blinkProgressRef.current * 2
+            : (1 - blinkProgressRef.current) * 2;
+
+        setBlink(vrmInstance, v);
 
         if (blinkProgressRef.current >= 1) {
           blinkClockRef.current = 0;
           blinkProgressRef.current = 0;
-          nextBlinkRef.current = 1.2 + Math.random() * 2.2;
+          nextBlinkRef.current = 1 + Math.random() * 2;
           setBlink(vrmInstance, 0);
         }
       }
@@ -170,166 +138,175 @@ function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef })
 
     if (fallbackRef.current) {
       fallbackRef.current.visible = visible && !vrmScene;
-      const bodyBob = Math.sin(walkTime * 7.8) * 0.03 * moveAmount;
-      fallbackRef.current.position.set(pos.x, 0.95 + bodyBob, pos.z);
+      fallbackRef.current.position.set(pos.x, 1, pos.z);
       fallbackRef.current.rotation.y = yaw;
     }
   });
 
   return (
     <>
-      {vrmScene ? <primitive object={vrmScene} /> : null}
-      <mesh ref={fallbackRef} castShadow>
-        <capsuleGeometry args={[0.22, 1.25, 4, 12]} />
-        <meshStandardMaterial color="#65a2c7" />
+      {vrmScene && <primitive object={vrmScene} />}
+      <mesh ref={fallbackRef}>
+        <capsuleGeometry args={[0.2, 1.2]} />
+        <meshStandardMaterial color="skyblue" />
       </mesh>
     </>
   );
 }
 
+/* ===================== PLAYER RIG ===================== */
+
 export default function PlayerRig({ mode }) {
   const { camera } = useThree();
+
   const pressed = useRef(new Set());
-  const positionRef = useRef(new THREE.Vector3(0, 0, 2.5));
+  const positionRef = useRef(new THREE.Vector3(0, 0, 2));
   const yawRef = useRef(0);
-  const pitchRef = useRef(-0.12);
-  const draggingRef = useRef(false);
-  const lastMouseRef = useRef({ x: 0, y: 0 });
+
+  const viewYawRef = useRef(0);
+  const pitchRef = useRef(-0.2);
+
   const moveAmountRef = useRef(0);
   const walkTimeRef = useRef(0);
 
-  const forward = useMemo(() => new THREE.Vector3(), []);
-  const targetCameraPos = useMemo(() => new THREE.Vector3(), []);
-  const targetLookAt = useMemo(() => new THREE.Vector3(), []);
-  const moveDir = useMemo(() => new THREE.Vector3(), []);
-  const lookAhead = useMemo(() => new THREE.Vector3(), []);
+  const draggingRef = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+
+  /* -------- INPUT -------- */
 
   useEffect(() => {
-    const down = (event) => {
-      pressed.current.add(event.key);
-    };
-    const up = (event) => {
-      pressed.current.delete(event.key);
-    };
+    const down = (e) => pressed.current.add(e.key);
+    const up = (e) => pressed.current.delete(e.key);
 
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-
-    const onMouseDown = (event) => {
-      if (event.button !== 0) return;
+    const mouseDown = (e) => {
+      if (e.button !== 0) return;
       draggingRef.current = true;
-      lastMouseRef.current.x = event.clientX;
-      lastMouseRef.current.y = event.clientY;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
     };
 
-    const onMouseUp = (event) => {
-      if (event.button !== 0) return;
-      draggingRef.current = false;
-    };
-
-    const onMouseMove = (event) => {
+    const mouseMove = (e) => {
       if (!draggingRef.current) return;
 
-      const dx = event.clientX - lastMouseRef.current.x;
-      const dy = event.clientY - lastMouseRef.current.y;
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
 
-      yawRef.current -= dx * LOOK_SENSITIVITY;
+      viewYawRef.current -= dx * LOOK_SENSITIVITY;
       pitchRef.current = clamp(
         pitchRef.current - dy * LOOK_SENSITIVITY,
         MIN_PITCH,
         MAX_PITCH
       );
 
-      lastMouseRef.current.x = event.clientX;
-      lastMouseRef.current.y = event.clientY;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
     };
 
-    const onWindowBlur = () => {
-      draggingRef.current = false;
-    };
+    const mouseUp = () => (draggingRef.current = false);
 
-    const onContextMenu = (event) => {
-      if (draggingRef.current) {
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mouseup", onMouseUp);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("blur", onWindowBlur);
-    window.addEventListener("contextmenu", onContextMenu);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("mousedown", mouseDown);
+    window.addEventListener("mousemove", mouseMove);
+    window.addEventListener("mouseup", mouseUp);
 
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
-      window.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("blur", onWindowBlur);
-      window.removeEventListener("contextmenu", onContextMenu);
+      window.removeEventListener("mousedown", mouseDown);
+      window.removeEventListener("mousemove", mouseMove);
+      window.removeEventListener("mouseup", mouseUp);
     };
   }, []);
+
+  /* -------- MAIN LOOP -------- */
 
   useFrame((_, delta) => {
     const key = pressed.current;
 
-    const moveForward = key.has("w") || key.has("W") || key.has("ArrowUp");
-    const moveBackward = key.has("s") || key.has("S") || key.has("ArrowDown");
-    const moveLeft = key.has("a") || key.has("A") || key.has("ArrowLeft");
-    const moveRight = key.has("d") || key.has("D") || key.has("ArrowRight");
+    const dx =
+      (key.has("d") || key.has("ArrowRight") ? 1 : 0) -
+      (key.has("a") || key.has("ArrowLeft") ? 1 : 0);
+    const dz =
+      (key.has("s") || key.has("ArrowDown") ? 1 : 0) -
+      (key.has("w") || key.has("ArrowUp") ? 1 : 0);
 
-    const dx = (moveRight ? 1 : 0) - (moveLeft ? 1 : 0);
-    const dz = (moveBackward ? 1 : 0) - (moveForward ? 1 : 0);
+    const camForward = new THREE.Vector3(
+      Math.sin(viewYawRef.current),
+      0,
+      -Math.cos(viewYawRef.current)
+    );
 
-    let speed = 0;
-    if (dx !== 0 || dz !== 0) {
-      moveDir.set(dx, 0, dz).normalize();
-      positionRef.current.x = clamp(positionRef.current.x + moveDir.x * SPEED * delta, BOUNDS.minX, BOUNDS.maxX);
-      positionRef.current.z = clamp(positionRef.current.z + moveDir.z * SPEED * delta, BOUNDS.minZ, BOUNDS.maxZ);
-      speed = SPEED;
+    const camRight = new THREE.Vector3(
+      Math.cos(viewYawRef.current),
+      0,
+      Math.sin(viewYawRef.current)
+    );
 
-      const targetYaw = Math.atan2(moveDir.x, -moveDir.z);
-      const diff = ((targetYaw - yawRef.current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      yawRef.current += diff * Math.min(1, delta * 7.5);
+    const moveDir = new THREE.Vector3();
+    if (dx || dz) {
+      moveDir.addScaledVector(camRight, dx);
+      moveDir.addScaledVector(camForward, -dz);
+      moveDir.normalize();
+
+      positionRef.current.addScaledVector(moveDir, SPEED * delta);
+
+      positionRef.current.x = clamp(positionRef.current.x, BOUNDS.minX, BOUNDS.maxX);
+      positionRef.current.z = clamp(positionRef.current.z, BOUNDS.minZ, BOUNDS.maxZ);
+
+      const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+      yawRef.current += shortestAngleDiff(targetYaw, yawRef.current) * delta * 10;
+
+      moveAmountRef.current = 1;
+    } else {
+      moveAmountRef.current = 0;
     }
 
-    moveAmountRef.current = Math.min(1, speed / SPEED);
-    walkTimeRef.current += delta * (0.4 + moveAmountRef.current * 1.2);
+    walkTimeRef.current += delta * (0.5 + moveAmountRef.current * WALK_CYCLE_SPEED);
 
-    forward.set(Math.sin(yawRef.current), 0, -Math.cos(yawRef.current));
+    const headBob =
+      Math.sin(walkTimeRef.current * WALK_CYCLE_FREQUENCY) *
+      0.03 *
+      moveAmountRef.current;
+
+    /* --- CAMERA --- */
+
     const pitchCos = Math.cos(pitchRef.current);
     const pitchSin = Math.sin(pitchRef.current);
-    const headBob = Math.sin(walkTimeRef.current * 7.8) * 0.03 * moveAmountRef.current;
 
     if (mode === "first-person") {
-      targetCameraPos.set(positionRef.current.x, 1.62 + headBob, positionRef.current.z);
-      lookAhead.set(
-        Math.sin(yawRef.current) * pitchCos,
+      const pos = new THREE.Vector3(
+        positionRef.current.x,
+        1.6 + headBob,
+        positionRef.current.z
+      );
+
+      const look = new THREE.Vector3(
+        Math.sin(viewYawRef.current) * pitchCos,
         pitchSin,
-        -Math.cos(yawRef.current) * pitchCos
-      ).multiplyScalar(6);
-      targetLookAt.copy(targetCameraPos).add(lookAhead);
-      camera.position.lerp(targetCameraPos, Math.min(1, delta * 9));
-      camera.lookAt(targetLookAt);
+        -Math.cos(viewYawRef.current) * pitchCos
+      );
+
+      camera.position.lerp(pos, delta * 10);
+      camera.lookAt(pos.clone().add(look));
       return;
     }
 
-    const orbitDistance = 3.4;
-    lookAhead.set(
-      Math.sin(yawRef.current) * pitchCos,
+    const orbit = new THREE.Vector3(
+      Math.sin(viewYawRef.current) * pitchCos,
       pitchSin,
-      -Math.cos(yawRef.current) * pitchCos
+      -Math.cos(viewYawRef.current) * pitchCos
     );
 
-    targetCameraPos
+    const camPos = new THREE.Vector3()
       .copy(positionRef.current)
-      .addScaledVector(lookAhead, -orbitDistance)
-      .add(new THREE.Vector3(0, 1.6 + headBob * 0.5, 0));
-    targetLookAt.copy(positionRef.current).add(new THREE.Vector3(0, 1.1, 0));
+      .addScaledVector(orbit, -3.5)
+      .add(new THREE.Vector3(0, 1.6 + headBob, 0));
 
-    camera.position.lerp(targetCameraPos, Math.min(1, delta * 7));
-    camera.lookAt(targetLookAt);
+    const lookAt = new THREE.Vector3()
+      .copy(positionRef.current)
+      .add(new THREE.Vector3(0, 1.2, 0));
+
+    camera.position.lerp(camPos, delta * 6);
+    camera.lookAt(lookAt);
   });
 
   return (
