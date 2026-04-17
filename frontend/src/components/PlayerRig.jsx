@@ -20,6 +20,8 @@ const GROUND_NORMAL_MIN_Y = 0.35;
 const WALL_NORMAL_MAX_Y = 0.45;
 const COLLISION_PADDING = 0.16;
 const COLLISION_PROBE_HEIGHTS = [0.45, 0.95, 1.35];
+const GROUND_MAX_STEP_UP = 0.75;
+const GROUND_MAX_STEP_DOWN = 4;
 
 const BOUNDS = {
   minX: -40,
@@ -189,7 +191,7 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
   const collisionOriginRef = useRef(new THREE.Vector3());
   const intersectionsRef = useRef([]);
   const groundStateRef = useRef({
-    y: 0,
+    y: Number.NaN,
     sampleTimer: 0,
     lastX: Number.NaN,
     lastZ: Number.NaN,
@@ -221,12 +223,44 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
     return normal.y >= GROUND_NORMAL_MIN_Y;
   };
 
-  const getGroundY = (x, z) => {
+  const getGroundY = (x, z, currentGroundY) => {
     const { ground, walls } = getColliderBuckets();
     const colliders = ground.length ? ground : walls;
-    if (!colliders.length) return groundStateRef.current.y;
+    if (!colliders.length) return Number.isFinite(currentGroundY) ? currentGroundY : 0;
 
     const raycaster = raycasterRef.current;
+
+    // Prefer nearby walkable surfaces to avoid snapping to overhead roofs.
+    if (Number.isFinite(currentGroundY)) {
+      rayOriginRef.current.set(x, currentGroundY + GROUND_MAX_STEP_UP + 0.25, z);
+      raycaster.set(rayOriginRef.current, rayDirectionRef.current);
+      raycaster.near = 0;
+      raycaster.far = GROUND_MAX_STEP_UP + GROUND_MAX_STEP_DOWN + 0.5;
+
+      intersectionsRef.current.length = 0;
+      const localIntersections = raycaster.intersectObjects(colliders, true, intersectionsRef.current);
+
+      let bestLocalY = null;
+      let bestLocalDelta = Number.POSITIVE_INFINITY;
+      for (const intersection of localIntersections) {
+        if (!isWalkableSurface(intersection)) continue;
+
+        const deltaY = intersection.point.y - currentGroundY;
+        if (deltaY > GROUND_MAX_STEP_UP || deltaY < -GROUND_MAX_STEP_DOWN) continue;
+
+        const absDelta = Math.abs(deltaY);
+        if (absDelta < bestLocalDelta) {
+          bestLocalDelta = absDelta;
+          bestLocalY = intersection.point.y;
+        }
+      }
+
+      if (bestLocalY !== null) {
+        return bestLocalY;
+      }
+    }
+
+    // Fallback for spawn/recovery: find any valid walkable surface from above.
     rayOriginRef.current.set(x, RAYCAST_HEIGHT, z);
     raycaster.set(rayOriginRef.current, rayDirectionRef.current);
     raycaster.near = 0;
@@ -234,13 +268,15 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
 
     intersectionsRef.current.length = 0;
     const intersections = raycaster.intersectObjects(colliders, true, intersectionsRef.current);
+    let bestFallbackY = null;
     for (const intersection of intersections) {
       if (isWalkableSurface(intersection)) {
-        return intersection.point.y;
+        bestFallbackY = intersection.point.y;
+        break;
       }
     }
 
-    return groundStateRef.current.y;
+    return bestFallbackY ?? (Number.isFinite(currentGroundY) ? currentGroundY : 0);
   };
 
   const hasForwardCollision = (deltaX, deltaZ) => {
@@ -396,13 +432,22 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
     groundState.sampleTimer += delta;
 
     if (groundState.sampleTimer >= GROUND_SAMPLE_INTERVAL || Number.isNaN(groundState.lastX)) {
-      groundState.y = getGroundY(positionRef.current.x, positionRef.current.z);
+      const sampledY = getGroundY(
+        positionRef.current.x,
+        positionRef.current.z,
+        groundState.y
+      );
+      if (Number.isFinite(sampledY)) {
+        groundState.y = sampledY;
+      }
       groundState.lastX = positionRef.current.x;
       groundState.lastZ = positionRef.current.z;
       groundState.sampleTimer = 0;
     }
 
-    positionRef.current.y = groundState.y + FEET_HEIGHT_OFFSET;
+    if (Number.isFinite(groundState.y)) {
+      positionRef.current.y = groundState.y + FEET_HEIGHT_OFFSET;
+    }
 
     walkTimeRef.current += delta * (0.5 + moveAmountRef.current * WALK_CYCLE_SPEED);
 
