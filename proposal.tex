@@ -1,0 +1,169 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{AI-Powered Adaptive 3D Escape Room}
+\author{Man Chun Hei William}
+\date{ISDN 3150 -- Spring 2026}
+\setlength{\parindent}{0pt}
+\begin{document}
+
+\maketitle
+
+\section{Problem Definition}
+
+Traditional escape room games, whether physical or digital, often suffer from a lack of adaptability and replayability. Most experiences rely on fixed puzzle structures, meaning that once a user has completed the game, the challenge and novelty significantly diminish. Additionally, players frequently encounter frustration when puzzles are either too difficult or too trivial, leading to disengagement and early abandonment.
+
+This problem is particularly evident in web-based puzzle experiences, where interaction is often limited to static interfaces and predefined logic. Such systems fail to provide personalized experiences that adapt to the user’s skill level, preferences, or behavior.
+
+From a design perspective, addressing this issue is valuable because user engagement is strongly influenced by perceived challenge and immersion. A system that dynamically adapts to the player can maintain an optimal balance between difficulty and enjoyment, thereby enhancing user retention and satisfaction.
+
+\section{Target User \& Persona}
+
+\subsection{Target Audience}
+The proposed system targets:
+\begin{itemize}
+    \item Students and young adults (ages 18--30)
+    \item Casual gamers interested in puzzle-solving
+    \item Users seeking interactive and immersive web experiences
+\end{itemize}
+
+\subsection{User Persona}
+
+\textbf{Name:} Alex Chen \\
+\textbf{Age:} 20 \\
+\textbf{Background:} University student who enjoys casual puzzle and mobile games. \\
+
+\textbf{Behaviors:}
+\begin{itemize}
+    \item Plays games during short breaks
+    \item Prefers intuitive and visually engaging interfaces
+    \item Avoids overly complex or time-consuming challenges
+\end{itemize}
+
+\textbf{Goals:}
+\begin{itemize}
+    \item Enjoy a fun and immersive puzzle-solving experience
+    \item Feel a sense of achievement from solving challenges
+\end{itemize}
+
+\textbf{Frustrations:}
+\begin{itemize}
+    \item Gets stuck easily without guidance
+    \item Loses interest when puzzles are repetitive
+    \item Finds most web-based games lack immersion
+\end{itemize}
+
+The proposed system aims to address these frustrations by providing adaptive difficulty, interactive environments, and personalized hints.
+
+\section{Proposed Features \& Value Proposition}
+
+\subsection{Core Functionalities}
+
+The proposed application is an AI-powered 3D escape room built as a web-based interactive experience. Key features include:
+
+\begin{itemize}
+    \item \textbf{3D Interactive Environment:} Users explore a virtual room rendered using modern web-based 3D technologies.
+    
+    \item \textbf{Object-Based Interaction:} Users can click on objects (e.g., doors, safes, paintings) to trigger puzzles and clues.
+    
+    \item \textbf{AI-Generated Puzzles:} Each game session generates unique puzzles dynamically using a Large Language Model (LLM).
+    
+    \item \textbf{Adaptive Hint System:} The system provides hints that adjust based on user progress and difficulty.
+    
+    \item \textbf{Game Progression System:} A structured sequence of puzzles must be solved to unlock the final escape condition.
+\end{itemize}
+
+\subsection{Value Proposition}
+
+The system addresses the limitations of traditional escape room experiences by:
+
+\begin{itemize}
+    \item Increasing replayability through dynamic content generation
+    \item Enhancing user engagement with adaptive difficulty
+    \item Providing immersive interaction through a 3D environment
+    \item Offering personalized experiences tailored to user behavior
+\end{itemize}
+
+\section{Technical Architecture \& AI Stack}
+
+\subsection{Frontend}
+
+The frontend will be developed using:
+\begin{itemize}
+    \item React (Vite) for application structure
+    \item React Three Fiber (Three.js) for 3D rendering
+    \item Standard React components for UI interaction
+\end{itemize}
+
+\subsection{Backend}
+
+The backend will be implemented using:
+\begin{itemize}
+    \item Python FastAPI for API development
+    \item Game state management for tracking user progress
+\end{itemize}
+
+\subsection{AI Services}
+
+\begin{itemize}
+    \item \textbf{LLM API:}
+    \begin{itemize}
+        \item Puzzle generation
+        \item Hint generation
+        \item Narrative descriptions
+    \end{itemize}
+    
+    \item \textbf{Prompt Engineering:}
+    \begin{itemize}
+        \item Structured prompts to ensure consistent puzzle format
+        \item Controlled difficulty levels
+    \end{itemize}
+    
+    \item \textbf{(Optional) RAG:}
+    \begin{itemize}
+        \item Retrieval of predefined puzzle templates to improve quality
+    \end{itemize}
+    
+    \item \textbf{(Optional) Image Generation:}
+    \begin{itemize}
+        \item Generate textures or visual clues for the 3D environment
+    \end{itemize}
+\end{itemize}
+
+\subsection{System Flow}
+
+\begin{enumerate}
+    \item User interacts with a 3D object in the frontend
+    \item A request is sent to the backend API
+    \item The backend calls the LLM to generate a puzzle
+    \item The puzzle is returned and displayed to the user
+    \item User submits an answer
+    \item Backend validates the answer and updates game state
+    \item If correct, progression is unlocked; otherwise, hints are provided
+\end{enumerate}
+
+\section{Budget Estimation}
+
+\subsection{Cost Breakdown}
+
+\begin{itemize}
+    \item HKUST API usage: \$0 HKD
+    \item Hosting (Vercel): Free
+    \item 3D assets (Sketchfab / open-source): Free
+    \item Development tools: Free
+\end{itemize}
+
+\subsection{Justification}
+
+The primary cost driver is API usage for generating puzzles and hints. However, usage can be optimized through caching and limiting unnecessary API calls. The project does not require expensive GPU resources or paid datasets, making it cost-efficient.
+
+\section{Conclusion}
+
+This project proposes an AI-powered adaptive 3D escape room that enhances user engagement through dynamic puzzle generation, immersive interaction, and personalized gameplay. By integrating modern web technologies with AI capabilities, the system transforms traditional static puzzle experiences into a responsive and intelligent interactive environment.
+
+The design not only addresses key limitations in current escape room systems but also demonstrates the potential of AI in enhancing digital user experiences.
+
+\end{document}
