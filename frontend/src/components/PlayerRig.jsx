@@ -15,8 +15,9 @@ const RAYCAST_HEIGHT = 60;
 const FEET_HEIGHT_OFFSET = 0.02;
 const CHARACTER_ROOT_OFFSET = 0.0;
 const CAMERA_HEIGHT_OFFSET = 1.6;
-const GROUND_SAMPLE_INTERVAL = 1 / 15;
-const GROUND_NORMAL_MIN_Y = 0.5;
+const GROUND_SAMPLE_INTERVAL_MOVING = 1 / 120;
+const GROUND_SAMPLE_INTERVAL_IDLE = 1 / 12;
+const GROUND_NORMAL_MIN_Y = 0.3;
 const WALL_NORMAL_MAX_Y = 0.45;
 const COLLISION_PADDING = 0.22;
 const COLLISION_PROBE_HEIGHTS = [0.2, 0.6, 1.0, 1.4];
@@ -430,8 +431,10 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
 
     const groundState = groundStateRef.current;
     groundState.sampleTimer += delta;
+    const sampleInterval =
+      moveAmountRef.current > 0 ? GROUND_SAMPLE_INTERVAL_MOVING : GROUND_SAMPLE_INTERVAL_IDLE;
 
-    if (groundState.sampleTimer >= GROUND_SAMPLE_INTERVAL || Number.isNaN(groundState.lastX)) {
+    if (groundState.sampleTimer >= sampleInterval || Number.isNaN(groundState.lastX)) {
       const sampledY = getGroundY(
         positionRef.current.x,
         positionRef.current.z,
