@@ -23,6 +23,7 @@ const COLLISION_PADDING = 0.22;
 const COLLISION_PROBE_HEIGHTS = [0.2, 0.6, 1.0, 1.4];
 const GROUND_MAX_STEP_UP = 0.75;
 const GROUND_MAX_STEP_DOWN = 4;
+const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1)$/i;
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -198,12 +199,16 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
       return {
         ground: colliders,
         walls: colliders,
+        alwaysBlockNames: new Set(),
       };
     }
 
     return {
       ground: colliders?.ground?.length ? colliders.ground : colliders?.walls || [],
       walls: colliders?.walls?.length ? colliders.walls : colliders?.ground || [],
+      alwaysBlockNames: new Set(
+        (colliders?.alwaysBlockNames || []).map((name) => String(name).toLowerCase())
+      ),
     };
   };
 
@@ -287,7 +292,7 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
     const distance = Math.hypot(deltaX, deltaZ);
     if (distance < 0.0001) return false;
 
-    const { walls } = getColliderBuckets();
+    const { walls, alwaysBlockNames } = getColliderBuckets();
     if (!walls.length) return false;
 
     const raycaster = raycasterRef.current;
@@ -307,6 +312,14 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
       const intersections = raycaster.intersectObjects(walls, true, intersectionsRef.current);
 
       for (const intersection of intersections) {
+        const objectName = intersection.object?.name || "";
+        if (
+          FORCE_BLOCKING_NAME_PATTERN.test(objectName) ||
+          alwaysBlockNames.has(objectName.toLowerCase())
+        ) {
+          return true;
+        }
+
         if (!intersection.face) {
           return true;
         }

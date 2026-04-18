@@ -5,6 +5,7 @@ const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment.glb";
 const TERRAIN_SCALE = 1;
 const GROUND_NAME_PATTERN = /^(Island_basemesh|island_cave|bridge|port|ruins)$/i;
 const NON_BLOCKING_NAME_PATTERN = /^(skybox|Ocean_plane)$/i;
+const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1)$/i;
 
 export default function Terrain({ collidersRef }) {
   const { scene } = useGLTF(TERRAIN_MODEL_URL);
@@ -50,15 +51,26 @@ export default function Terrain({ collidersRef }) {
       .filter(({ mesh }) => !NON_BLOCKING_NAME_PATTERN.test(mesh.name || ""))
       .map(({ mesh }) => mesh);
 
+    const forcedBlockingMeshes = sorted
+      .filter(({ mesh }) => FORCE_BLOCKING_NAME_PATTERN.test(mesh.name || ""))
+      .map(({ mesh }) => mesh);
+
+    const finalWallMeshes = Array.from(new Set([...wallMeshes, ...forcedBlockingMeshes]));
+    const alwaysBlockNames = forcedBlockingMeshes
+      .map((mesh) => (mesh.name || "").toLowerCase())
+      .filter(Boolean);
+
     collidersRef.current = {
       ground: groundMeshes,
-      walls: wallMeshes.length ? wallMeshes : groundMeshes,
+      walls: finalWallMeshes.length ? finalWallMeshes : groundMeshes,
+      alwaysBlockNames,
     };
 
     return () => {
       collidersRef.current = {
         ground: [],
         walls: [],
+        alwaysBlockNames: [],
       };
     };
   }, [scene, collidersRef]);
