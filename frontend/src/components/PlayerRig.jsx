@@ -14,7 +14,7 @@ const WALK_CYCLE_SPEED = 1.4;
 const RAYCAST_HEIGHT = 60;
 const FEET_HEIGHT_OFFSET = 0.02;
 const CHARACTER_ROOT_OFFSET = 0.0;
-const CAMERA_HEIGHT_OFFSET = 1.6;
+const CAMERA_HEIGHT_OFFSET = 3;
 const GROUND_SAMPLE_INTERVAL_MOVING = 1 / 120;
 const GROUND_SAMPLE_INTERVAL_IDLE = 1 / 12;
 const GROUND_NORMAL_MIN_Y = 0.3;
@@ -24,6 +24,10 @@ const COLLISION_PROBE_HEIGHTS = [0.2, 0.6, 1.0, 1.4];
 const GROUND_MAX_STEP_UP = 0.75;
 const GROUND_MAX_STEP_DOWN = 4;
 const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1)$/i;
+const GRAVITY = 18;
+const JUMP_VELOCITY = 6.2;
+const MAX_FALL_SPEED = 20;
+const JUMP_BUFFER_TIME = 0.12;
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -41,7 +45,15 @@ function setBlink(vrm, value) {
   if (manager?.setValue) manager.setValue("blink", value);
 }
 
-function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef }) {
+function VrmAvatar({
+  positionRef,
+  yawRef,
+  visible,
+  moveAmountRef,
+  walkTimeRef,
+  isGroundedRef,
+  verticalVelocityRef,
+}) {
   const [vrmScene, setVrmScene] = useState(null);
   const [vrmInstance, setVrmInstance] = useState(null);
 
@@ -93,17 +105,26 @@ function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef })
     const yaw = yawRef.current;
     const move = moveAmountRef.current;
     const t = walkTimeRef.current;
+    const grounded = isGroundedRef.current;
+    const verticalVelocity = verticalVelocityRef.current;
 
     if (vrmScene) {
-      const bob = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.03 * move;
+      const groundedMove = grounded ? move : move * 0.35;
+      const bob = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.03 * groundedMove;
       vrmScene.position.set(pos.x, pos.y + CHARACTER_ROOT_OFFSET + bob, pos.z);
       vrmScene.rotation.y = yaw + AVATAR_YAW_OFFSET;
       vrmScene.visible = visible;
     }
 
     if (vrmInstance && idleBoneRotationsRef.current) {
-      const swing = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.2 * move;
-      const leg = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.35 * move;
+      const locomotionFactor = grounded ? 1 : 0.35;
+      const swing = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.2 * move * locomotionFactor;
+      const leg = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.35 * move * locomotionFactor;
+
+      const airborneBlend = grounded ? 0 : 1;
+      const ascentBlend = grounded ? 0 : clamp(verticalVelocity / JUMP_VELOCITY, 0, 1);
+      const descentBlend = grounded ? 0 : clamp(-verticalVelocity / MAX_FALL_SPEED, 0, 1);
+      const jumpLegOffset = airborneBlend * (0.12 + descentBlend * 0.08 - ascentBlend * 0.08);
 
       const apply = (bone, euler) => {
         const node = bonesRef.current[bone];
@@ -114,11 +135,32 @@ function VrmAvatar({ positionRef, yawRef, visible, moveAmountRef, walkTimeRef })
         node.quaternion.slerp(q, Math.min(1, delta * 8));
       };
 
-      apply("leftUpperArm", new THREE.Euler(-swing, 0, -1.1));
-      apply("rightUpperArm", new THREE.Euler(swing, 0, 1.1));
-      apply("leftUpperLeg", new THREE.Euler(leg, 0, 0));
-      apply("rightUpperLeg", new THREE.Euler(-leg, 0, 0));
-      apply("hips", new THREE.Euler(Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.02 * move, 0, 0));
+      apply(
+        "leftUpperArm",
+        new THREE.Euler(-swing - airborneBlend * 0.24, 0, -1.1 + airborneBlend * 0.08)
+      );
+      apply(
+        "rightUpperArm",
+        new THREE.Euler(swing - airborneBlend * 0.24, 0, 1.1 - airborneBlend * 0.08)
+      );
+
+      apply(
+        "leftUpperLeg",
+        new THREE.Euler(leg + jumpLegOffset, 0, 0)
+      );
+      apply(
+        "rightUpperLeg",
+        new THREE.Euler(-leg + jumpLegOffset, 0, 0)
+      );
+
+      apply(
+        "hips",
+        new THREE.Euler(
+          Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.02 * move * locomotionFactor,
+          0,
+          0
+        )
+      );
 
       // blink
       blinkClockRef.current += delta;
@@ -174,6 +216,9 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
 
   const moveAmountRef = useRef(0);
   const walkTimeRef = useRef(0);
+  const verticalVelocityRef = useRef(0);
+  const isGroundedRef = useRef(true);
+  const jumpBufferTimerRef = useRef(0);
 
   const draggingRef = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
@@ -341,7 +386,14 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
   /* -------- INPUT -------- */
 
   useEffect(() => {
-    const down = (e) => pressed.current.add(e.key);
+    const down = (e) => {
+      pressed.current.add(e.key);
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        jumpBufferTimerRef.current = JUMP_BUFFER_TIME;
+      }
+    };
     const up = (e) => pressed.current.delete(e.key);
 
     const mouseDown = (e) => {
@@ -461,8 +513,37 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
       groundState.sampleTimer = 0;
     }
 
-    if (Number.isFinite(groundState.y)) {
-      positionRef.current.y = groundState.y + FEET_HEIGHT_OFFSET;
+    const hasGroundSample = Number.isFinite(groundState.y);
+    const groundY = hasGroundSample
+      ? groundState.y + FEET_HEIGHT_OFFSET
+      : positionRef.current.y;
+
+    jumpBufferTimerRef.current = Math.max(0, jumpBufferTimerRef.current - delta);
+
+    if (isGroundedRef.current) {
+      if (hasGroundSample) {
+        positionRef.current.y = groundY;
+      }
+
+      if (!hasGroundSample) {
+        isGroundedRef.current = false;
+      } else if (jumpBufferTimerRef.current > 0) {
+        jumpBufferTimerRef.current = 0;
+        isGroundedRef.current = false;
+        verticalVelocityRef.current = JUMP_VELOCITY;
+      }
+    } else {
+      verticalVelocityRef.current = Math.max(
+        verticalVelocityRef.current - GRAVITY * delta,
+        -MAX_FALL_SPEED
+      );
+      positionRef.current.y += verticalVelocityRef.current * delta;
+
+      if (hasGroundSample && verticalVelocityRef.current <= 0 && positionRef.current.y <= groundY) {
+        positionRef.current.y = groundY;
+        verticalVelocityRef.current = 0;
+        isGroundedRef.current = true;
+      }
     }
 
     walkTimeRef.current += delta * (0.5 + moveAmountRef.current * WALK_CYCLE_SPEED);
@@ -520,6 +601,8 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
       yawRef={yawRef}
       moveAmountRef={moveAmountRef}
       walkTimeRef={walkTimeRef}
+      isGroundedRef={isGroundedRef}
+      verticalVelocityRef={verticalVelocityRef}
       visible={mode === "third-person"}
     />
   );
