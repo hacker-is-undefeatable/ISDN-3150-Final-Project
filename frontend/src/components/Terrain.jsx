@@ -5,7 +5,7 @@ const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment.glb";
 const TERRAIN_SCALE = 1;
 const GROUND_NAME_PATTERN = /^(Island_basemesh|island_cave|bridge|port|ruins)$/i;
 const NON_BLOCKING_NAME_PATTERN = /^(skybox|Ocean_plane)$/i;
-const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1)$/i;
+const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1|ruins(?:_.+)?)$/i;
 
 export default function Terrain({ collidersRef }) {
   const { scene } = useGLTF(TERRAIN_MODEL_URL);
