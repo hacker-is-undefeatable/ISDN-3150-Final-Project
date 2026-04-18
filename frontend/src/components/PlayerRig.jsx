@@ -14,7 +14,8 @@ const WALK_CYCLE_SPEED = 1.4;
 const RAYCAST_HEIGHT = 60;
 const FEET_HEIGHT_OFFSET = 0.02;
 const CHARACTER_ROOT_OFFSET = 0.0;
-const CAMERA_HEIGHT_OFFSET = 3;
+const CAMERA_HEIGHT_OFFSET = 1;
+const THIRD_PERSON_CAMERA_DISTANCE = 9.0;
 const GROUND_SAMPLE_INTERVAL_MOVING = 1 / 120;
 const GROUND_SAMPLE_INTERVAL_IDLE = 1 / 12;
 const GROUND_NORMAL_MIN_Y = 0.3;
@@ -584,7 +585,7 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
 
     const camPos = new THREE.Vector3()
       .copy(positionRef.current)
-      .addScaledVector(orbit, -3.5)
+      .addScaledVector(orbit, -THIRD_PERSON_CAMERA_DISTANCE)
       .add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET + headBob, 0));
 
     const lookAt = new THREE.Vector3()
