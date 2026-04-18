@@ -13,22 +13,15 @@ const WALK_CYCLE_FREQUENCY = 6;
 const WALK_CYCLE_SPEED = 1.4;
 const RAYCAST_HEIGHT = 60;
 const FEET_HEIGHT_OFFSET = 0.02;
-const CHARACTER_ROOT_OFFSET = 1.05;
+const CHARACTER_ROOT_OFFSET = 0.0;
 const CAMERA_HEIGHT_OFFSET = 1.6;
 const GROUND_SAMPLE_INTERVAL = 1 / 15;
-const GROUND_NORMAL_MIN_Y = 0.35;
+const GROUND_NORMAL_MIN_Y = 0.5;
 const WALL_NORMAL_MAX_Y = 0.45;
-const COLLISION_PADDING = 0.16;
-const COLLISION_PROBE_HEIGHTS = [0.45, 0.95, 1.35];
+const COLLISION_PADDING = 0.22;
+const COLLISION_PROBE_HEIGHTS = [0.2, 0.6, 1.0, 1.4];
 const GROUND_MAX_STEP_UP = 0.75;
 const GROUND_MAX_STEP_DOWN = 4;
-
-const BOUNDS = {
-  minX: -40,
-  maxX: 40,
-  minZ: -40,
-  maxZ: 40,
-};
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -269,10 +262,20 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
     intersectionsRef.current.length = 0;
     const intersections = raycaster.intersectObjects(colliders, true, intersectionsRef.current);
     let bestFallbackY = null;
+    let bestFallbackDelta = Number.POSITIVE_INFINITY;
+
     for (const intersection of intersections) {
-      if (isWalkableSurface(intersection)) {
+      if (!isWalkableSurface(intersection)) continue;
+
+      if (Number.isFinite(currentGroundY)) {
+        const absDelta = Math.abs(intersection.point.y - currentGroundY);
+        if (absDelta < bestFallbackDelta) {
+          bestFallbackDelta = absDelta;
+          bestFallbackY = intersection.point.y;
+        }
+      } else if (bestFallbackY === null || intersection.point.y < bestFallbackY) {
+        // On initial spawn, prefer the lowest walkable hit to avoid roofs/props.
         bestFallbackY = intersection.point.y;
-        break;
       }
     }
 
@@ -416,9 +419,6 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
           moved = true;
         }
       }
-
-      positionRef.current.x = clamp(positionRef.current.x, BOUNDS.minX, BOUNDS.maxX);
-      positionRef.current.z = clamp(positionRef.current.z, BOUNDS.minZ, BOUNDS.maxZ);
 
       const targetYaw = Math.atan2(moveDir.x, moveDir.z);
       yawRef.current += shortestAngleDiff(targetYaw, yawRef.current) * delta * 10;

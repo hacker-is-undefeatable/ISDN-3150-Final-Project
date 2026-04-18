@@ -3,8 +3,8 @@ import { useGLTF } from "@react-three/drei";
 
 const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment.glb";
 const TERRAIN_SCALE = 1;
-const GROUND_NAME_PATTERN = /(terrain|ground|island|land|floor|hill|path|cliff|rock)/i;
-const MAX_WALL_COLLIDERS = 18;
+const GROUND_NAME_PATTERN = /^(Island_basemesh|island_cave|bridge|port|ruins)$/i;
+const NON_BLOCKING_NAME_PATTERN = /^(skybox|Ocean_plane)$/i;
 
 export default function Terrain({ collidersRef }) {
   const { scene } = useGLTF(TERRAIN_MODEL_URL);
@@ -37,16 +37,22 @@ export default function Terrain({ collidersRef }) {
       GROUND_NAME_PATTERN.test(mesh.name)
     );
 
-    const groundMesh = (namedGroundCandidates[0] || sorted[0])?.mesh || null;
+    const groundMeshes = namedGroundCandidates.length
+      ? namedGroundCandidates.map(({ mesh }) => mesh)
+      : sorted.length
+      ? [sorted[0].mesh]
+      : [];
+
+    const groundMeshSet = new Set(groundMeshes);
 
     const wallMeshes = sorted
-      .filter(({ mesh }) => mesh !== groundMesh)
-      .slice(0, MAX_WALL_COLLIDERS)
+      .filter(({ mesh }) => !groundMeshSet.has(mesh))
+      .filter(({ mesh }) => !NON_BLOCKING_NAME_PATTERN.test(mesh.name || ""))
       .map(({ mesh }) => mesh);
 
     collidersRef.current = {
-      ground: groundMesh ? [groundMesh] : [],
-      walls: wallMeshes.length ? wallMeshes : groundMesh ? [groundMesh] : [],
+      ground: groundMeshes,
+      walls: wallMeshes.length ? wallMeshes : groundMeshes,
     };
 
     return () => {

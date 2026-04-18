@@ -34,7 +34,7 @@ function withTimeout(promise, ms) {
 }
 
 export default function App() {
-  const terrainCollidersRef = useRef([]);
+  const terrainCollidersRef = useRef({ ground: [], walls: [] });
 
   const [gameStarted, setGameStarted] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
