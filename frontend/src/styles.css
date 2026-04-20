@@ -114,6 +114,21 @@ body,
   color: #344a56;
 }
 
+.progress-text {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+  color: #2d4350;
+}
+
+.interaction-tip {
+  margin: 0 0 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(79, 112, 156, 0.14);
+  color: #203647;
+  font-size: 0.86rem;
+}
+
 .puzzle-block {
   margin-top: 8px;
 }
@@ -168,6 +183,90 @@ body,
   font-size: 0.9rem;
 }
 
+.minimap-hud {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 168px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(16, 20, 24, 0.88);
+  color: #e5f4f1;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.minimap-title {
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.84;
+}
+
+.minimap-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(229, 244, 241, 0.28);
+  background:
+    radial-gradient(circle at center, rgba(42, 72, 68, 0.35), rgba(15, 20, 24, 0.9) 70%);
+}
+
+.minimap-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(229, 244, 241, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(229, 244, 241, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.minimap-spots-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.minimap-spot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  border: 1px solid;
+}
+
+.minimap-spot-default {
+  background: #85ccff;
+  border-color: #e7f7ff;
+  box-shadow: 0 0 0 1px rgba(133, 204, 255, 0.4);
+}
+
+.minimap-spot-near {
+  background: #ffd166;
+  border-color: #fff0bf;
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.28);
+}
+
+.minimap-spot-completed {
+  background: #84e6a8;
+  border-color: #dcfce7;
+  box-shadow: 0 0 0 2px rgba(132, 230, 168, 0.24);
+}
+
+.minimap-marker {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ff7b7b;
+  border: 1px solid #fff2f2;
+  box-shadow: 0 0 0 2px rgba(255, 123, 123, 0.24);
+  transform: translate(-50%, -50%);
+}
+
 .coords-hud {
   position: absolute;
   right: 16px;
@@ -214,6 +313,12 @@ body,
   .status-badge {
     top: 12px;
     right: 12px;
+  }
+
+  .minimap-hud {
+    top: 12px;
+    right: 12px;
+    width: 146px;
   }
 
   .coords-hud {

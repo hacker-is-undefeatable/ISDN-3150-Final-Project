@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useGLTF } from "@react-three/drei";
+import * as THREE from "three";
 
 const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment.glb";
 const TERRAIN_SCALE = 1;
@@ -7,7 +8,7 @@ const GROUND_NAME_PATTERN = /^(Island_basemesh|island_cave|bridge|port|ruins)$/i
 const NON_BLOCKING_NAME_PATTERN = /^(skybox|Ocean_plane)$/i;
 const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1|ruins(?:_.+)?)$/i;
 
-export default function Terrain({ collidersRef }) {
+export default function Terrain({ collidersRef, onMapBoundsChange }) {
   const { scene } = useGLTF(TERRAIN_MODEL_URL);
 
   useEffect(() => {
@@ -60,6 +61,26 @@ export default function Terrain({ collidersRef }) {
       .map((mesh) => (mesh.name || "").toLowerCase())
       .filter(Boolean);
 
+    const bounds = new THREE.Box3();
+    const boundsSources = groundMeshes.length ? groundMeshes : finalWallMeshes;
+
+    if (boundsSources.length) {
+      for (const mesh of boundsSources) {
+        bounds.expandByObject(mesh);
+      }
+    } else {
+      bounds.setFromObject(scene);
+    }
+
+    if (onMapBoundsChange && bounds.isEmpty() === false) {
+      onMapBoundsChange({
+        minX: bounds.min.x,
+        maxX: bounds.max.x,
+        minZ: bounds.min.z,
+        maxZ: bounds.max.z,
+      });
+    }
+
     collidersRef.current = {
       ground: groundMeshes,
       walls: finalWallMeshes.length ? finalWallMeshes : groundMeshes,
@@ -73,7 +94,7 @@ export default function Terrain({ collidersRef }) {
         alwaysBlockNames: [],
       };
     };
-  }, [scene, collidersRef]);
+  }, [scene, collidersRef, onMapBoundsChange]);
 
   return <primitive object={scene} frustumCulled />;
 }

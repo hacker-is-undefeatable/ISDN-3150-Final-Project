@@ -25,12 +25,12 @@ app.add_middleware(
 
 
 class GeneratePuzzleRequest(BaseModel):
-    object_type: str = Field(..., pattern="^(door|safe|painting)$")
+    object_type: str = Field(..., pattern="^(door|safe|painting|spot_[1-5])$")
     hint_only: bool = False
 
 
 class CheckAnswerRequest(BaseModel):
-    object_type: str = Field(..., pattern="^(door|safe|painting)$")
+    object_type: str = Field(..., pattern="^(door|safe|painting|spot_[1-5])$")
     answer: str
 
 
@@ -45,13 +45,13 @@ class GameState:
     door_unlocked: bool = False
     safe_opened: bool = False
     current_puzzle: Dict[str, PuzzleResponse] = field(default_factory=dict)
+    explored_spots: set[str] = field(default_factory=set)
 
 
 GAME_STATE = GameState()
 RECENT_QUESTIONS: Dict[str, list[str]] = {
-    "door": [],
-    "safe": [],
-    "painting": [],
+    **{name: [] for name in ["door", "safe", "painting"]},
+    **{f"spot_{i}": [] for i in range(1, 6)},
 }
 
 FURNITURE_FOCUS = {
@@ -65,6 +65,23 @@ def normalize(text: str) -> str:
     text = text.strip().lower()
     text = re.sub(r"\s+", " ", text)
     return text
+
+
+def is_math_spot(object_type: str) -> bool:
+    return object_type.startswith("spot_")
+
+
+def answers_match(user_answer: str, expected_answer: str) -> bool:
+    normalized_user = normalize(user_answer)
+    normalized_expected = normalize(expected_answer)
+
+    if normalized_user == normalized_expected:
+        return True
+
+    try:
+        return abs(float(normalized_user) - float(normalized_expected)) < 1e-9
+    except ValueError:
+        return False
 
 
 async def generate_puzzle_with_hkust_azure(
@@ -112,7 +129,6 @@ async def generate_puzzle_with_hkust_azure(
 
     endpoint = endpoint.rstrip("/") if endpoint else ""
 
-    topic = FURNITURE_FOCUS[object_type]
     excluded_questions = excluded_questions or []
     avoid_clause = ""
     if excluded_questions:
@@ -123,16 +139,29 @@ async def generate_puzzle_with_hkust_azure(
         )
 
     generation_id = str(uuid4())
-    prompt = (
-        "Create ONE unique escape-room puzzle about Python coding for the object type "
-        f"'{object_type}'. Topic focus: {topic}. "
-        "Return strict JSON with keys question, answer, hint. "
-        "Constraints: question must require Python reasoning, answer must be a single token "
-        "(single word, number, or short symbol), hint must not reveal the exact answer, "
-        "family-friendly, and different from common generic riddles."
-        f"{avoid_clause}"
-        f"Generation nonce: {generation_id}"
-    )
+    if is_math_spot(object_type):
+        prompt = (
+            "Create ONE unique simple arithmetic challenge for an exploration checkpoint in a 3D learning game. "
+            f"Checkpoint id: '{object_type}'. "
+            "Return strict JSON with keys question, answer, hint. "
+            "Constraints: use beginner-friendly math with small non-negative integers (0-20), "
+            "allow +, -, or small multiplication only, question should be short and clear, "
+            "answer must be a single numeric token, and hint must help without giving the exact answer."
+            f"{avoid_clause}"
+            f"Generation nonce: {generation_id}"
+        )
+    else:
+        topic = FURNITURE_FOCUS[object_type]
+        prompt = (
+            "Create ONE unique escape-room puzzle about Python coding for the object type "
+            f"'{object_type}'. Topic focus: {topic}. "
+            "Return strict JSON with keys question, answer, hint. "
+            "Constraints: question must require Python reasoning, answer must be a single token "
+            "(single word, number, or short symbol), hint must not reveal the exact answer, "
+            "family-friendly, and different from common generic riddles."
+            f"{avoid_clause}"
+            f"Generation nonce: {generation_id}"
+        )
 
     base_payload = {
         "messages": [
@@ -285,7 +314,7 @@ async def check_answer(payload: CheckAnswerRequest):
 
     puzzle = GAME_STATE.current_puzzle[payload.object_type]
 
-    correct = normalize(payload.answer) == normalize(puzzle.answer)
+    correct = answers_match(payload.answer, puzzle.answer)
     if not correct:
         return {
             "correct": False,
@@ -294,8 +323,12 @@ async def check_answer(payload: CheckAnswerRequest):
                 "door_unlocked": GAME_STATE.door_unlocked,
                 "safe_opened": GAME_STATE.safe_opened,
                 "current_puzzle": payload.object_type,
+                "explored_spots": sorted(GAME_STATE.explored_spots),
             },
         }
+
+    if is_math_spot(payload.object_type):
+        GAME_STATE.explored_spots.add(payload.object_type)
 
     if payload.object_type == "painting":
         GAME_STATE.safe_opened = True
@@ -309,6 +342,7 @@ async def check_answer(payload: CheckAnswerRequest):
             "door_unlocked": GAME_STATE.door_unlocked,
             "safe_opened": GAME_STATE.safe_opened,
             "current_puzzle": payload.object_type,
+            "explored_spots": sorted(GAME_STATE.explored_spots),
         },
     }
 
@@ -323,6 +357,7 @@ async def reset_game():
         "state": {
             "door_unlocked": GAME_STATE.door_unlocked,
             "safe_opened": GAME_STATE.safe_opened,
+            "explored_spots": sorted(GAME_STATE.explored_spots),
         },
     }
 
