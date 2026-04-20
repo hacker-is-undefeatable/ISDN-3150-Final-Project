@@ -49,6 +49,7 @@ export default function App() {
   const [loadingPuzzle, setLoadingPuzzle] = useState(false);
   const [checkingAnswer, setCheckingAnswer] = useState(false);
   const [fetchingHint, setFetchingHint] = useState(false);
+  const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0, z: 2 });
 
   const escaped = safeOpened && doorUnlocked;
 
@@ -65,6 +66,7 @@ export default function App() {
     setSelectedObject(null);
     setAnswer("");
     setHint("");
+    setPlayerCoords({ x: 0, y: 0, z: 2 });
 
     try {
       setStartingGame(true);
@@ -174,7 +176,11 @@ export default function App() {
             />
             <directionalLight position={[-8, 10, -12]} intensity={0.35} />
             <Terrain collidersRef={terrainCollidersRef} />
-            <PlayerRig mode={cameraMode} terrainCollidersRef={terrainCollidersRef} />
+            <PlayerRig
+              mode={cameraMode}
+              terrainCollidersRef={terrainCollidersRef}
+              onPositionChange={setPlayerCoords}
+            />
           </Canvas>
 
           <UI
@@ -185,6 +191,7 @@ export default function App() {
             answer={answer}
             hint={hint}
             feedback={feedback}
+            playerCoords={playerCoords}
             loadingPuzzle={loadingPuzzle}
             checkingAnswer={checkingAnswer}
             fetchingHint={fetchingHint}

@@ -29,6 +29,7 @@ const GRAVITY = 18;
 const JUMP_VELOCITY = 6.2;
 const MAX_FALL_SPEED = 20;
 const JUMP_BUFFER_TIME = 0.12;
+const POSITION_REPORT_INTERVAL = 0.1;
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -205,7 +206,7 @@ function VrmAvatar({
 
 /* ===================== PLAYER RIG ===================== */
 
-export default function PlayerRig({ mode, terrainCollidersRef }) {
+export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange }) {
   const { camera } = useThree();
 
   const pressed = useRef(new Set());
@@ -231,6 +232,10 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
   const collisionNormalRef = useRef(new THREE.Vector3());
   const collisionOriginRef = useRef(new THREE.Vector3());
   const intersectionsRef = useRef([]);
+  const positionReportRef = useRef({
+    timer: 0,
+    lastSignature: "",
+  });
   const groundStateRef = useRef({
     y: Number.NaN,
     sampleTimer: 0,
@@ -436,6 +441,16 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!onPositionChange) return;
+
+    onPositionChange({
+      x: Number(positionRef.current.x.toFixed(2)),
+      y: Number(positionRef.current.y.toFixed(2)),
+      z: Number(positionRef.current.z.toFixed(2)),
+    });
+  }, [onPositionChange]);
+
   /* -------- MAIN LOOP -------- */
 
   useFrame((_, delta) => {
@@ -558,6 +573,25 @@ export default function PlayerRig({ mode, terrainCollidersRef }) {
 
     const pitchCos = Math.cos(pitchRef.current);
     const pitchSin = Math.sin(pitchRef.current);
+
+    if (onPositionChange) {
+      const positionReport = positionReportRef.current;
+      positionReport.timer += delta;
+
+      if (positionReport.timer >= POSITION_REPORT_INTERVAL) {
+        positionReport.timer = 0;
+
+        const x = Number(positionRef.current.x.toFixed(2));
+        const y = Number(positionRef.current.y.toFixed(2));
+        const z = Number(positionRef.current.z.toFixed(2));
+        const signature = `${x}|${y}|${z}`;
+
+        if (signature !== positionReport.lastSignature) {
+          positionReport.lastSignature = signature;
+          onPositionChange({ x, y, z });
+        }
+      }
+    }
 
     if (mode === "first-person") {
       const pos = new THREE.Vector3(

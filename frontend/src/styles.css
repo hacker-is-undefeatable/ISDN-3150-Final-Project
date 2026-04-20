@@ -168,6 +168,34 @@ body,
   font-size: 0.9rem;
 }
 
+.coords-hud {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(16, 20, 24, 0.88);
+  color: #e5f4f1;
+  font-size: 0.82rem;
+  font-family: "Consolas", "Courier New", monospace;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.coords-label {
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+}
+
+.coords-value {
+  white-space: nowrap;
+}
+
 .win-banner {
   margin: 10px 0;
   padding: 8px;
@@ -186,5 +214,10 @@ body,
   .status-badge {
     top: 12px;
     right: 12px;
+  }
+
+  .coords-hud {
+    right: 12px;
+    bottom: 12px;
   }
 }
