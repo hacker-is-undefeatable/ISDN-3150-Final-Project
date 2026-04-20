@@ -14,49 +14,67 @@
 
 \section{Problem Definition}
 
-Traditional escape room games, whether physical or digital, often suffer from a lack of adaptability and replayability. Most experiences rely on fixed puzzle structures, meaning that once a user has completed the game, the challenge and novelty significantly diminish. Additionally, players frequently encounter frustration when puzzles are either too difficult or too trivial, leading to disengagement and early abandonment.
+Current AI study applications commonly focus on a narrow workflow: students upload notes, then the system generates flashcards or short quizzes. While this improves content preparation efficiency, the learning interaction is often text-heavy, repetitive, and low in immersion, which can reduce sustained motivation over time.
 
-This problem is particularly evident in web-based puzzle experiences, where interaction is often limited to static interfaces and predefined logic. Such systems fail to provide personalized experiences that adapt to the user’s skill level, preferences, or behavior.
+From an educational perspective, these tools also present pedagogical limitations. First, question delivery is frequently uniform and does not sufficiently adapt to individual prior knowledge, causing either cognitive overload or under-challenge. Second, feedback is often limited to correct/incorrect labels, offering insufficient support for misconception repair, reasoning development, and long-term retention.
 
-From a design perspective, addressing this issue is valuable because user engagement is strongly influenced by perceived challenge and immersion. A system that dynamically adapts to the player can maintain an optimal balance between difficulty and enjoyment, thereby enhancing user retention and satisfaction.
+This project addresses these gaps by reframing the learning process as an AI-powered, question-driven 3D escape room. Instead of passively reviewing generated cards, students actively solve contextualized challenges embedded in interactive environments, promoting deeper cognitive engagement.
+
+The proposed adaptive mechanism adjusts question type, topic, and difficulty according to learner performance while providing scaffolded hints and concise explanations. In addition, uploaded user materials (PDF notes, lecture slides, or textbook excerpts) are prioritized during question generation to align challenges with current coursework. Consequently, the system supports retrieval practice, conceptual reinforcement, and sustained participation, aligning game mechanics with measurable student learning outcomes.
 
 \section{Target User \& Persona}
 
 \subsection{Target Audience}
 The proposed system targets:
 \begin{itemize}
-    \item Students and young adults (ages 18--30)
-    \item Casual gamers interested in puzzle-solving
-    \item Users seeking interactive and immersive web experiences
+    \item University students (ages 18--25) who currently use AI study tools for note upload, flashcard generation, and auto-quiz practice
+    \item Learners in content-heavy courses who need frequent retrieval practice (e.g., STEM, social science, and business subjects)
+    \item Students who struggle to maintain motivation in text-only study workflows
+    \item Users who respond well to interactive learning, short study sessions, and game-based progression
 \end{itemize}
 
 \subsection{User Persona}
 
 \textbf{Name:} Alex Chen \\
 \textbf{Age:} 20 \\
-\textbf{Background:} University student who enjoys casual puzzle and mobile games. \\
+\textbf{Background:} Second-year university student who studies with AI tools by uploading lecture notes to generate flashcards and quizzes. \\
 
 \textbf{Behaviors:}
 \begin{itemize}
-    \item Plays games during short breaks
-    \item Prefers intuitive and visually engaging interfaces
-    \item Avoids overly complex or time-consuming challenges
+    \item Studies in short 15--30 minute sessions between classes
+    \item Frequently uploads notes before quizzes to generate quick practice sets
+    \item Completes generated flashcards rapidly, often without deep conceptual reflection
+    \item Uses casual games to take breaks when studying becomes monotonous
 \end{itemize}
 
 \textbf{Goals:}
 \begin{itemize}
-    \item Enjoy a fun and immersive puzzle-solving experience
-    \item Feel a sense of achievement from solving challenges
+    \item Improve exam performance through consistent and effective daily practice
+    \item Better understand concepts rather than memorizing isolated facts
+    \item Receive immediate explanations that correct misunderstanding
+    \item Stay motivated through interactive and rewarding study activities
+    \item Build long-term study habits using short but meaningful learning sessions
 \end{itemize}
 
 \textbf{Frustrations:}
 \begin{itemize}
-    \item Gets stuck easily without guidance
-    \item Loses interest when puzzles are repetitive
-    \item Finds most web-based games lack immersion
+    \item Flashcards and basic auto-quizzes feel repetitive and disconnected from real problem solving
+    \item Question difficulty is often poorly calibrated (too easy or too hard)
+    \item Most tools provide limited feedback beyond correct/incorrect labels
+    \item Motivation drops quickly in text-heavy study interfaces
+    \item Weak topics are not always identified clearly across sessions
 \end{itemize}
 
-The proposed system aims to address these frustrations by providing adaptive difficulty, interactive environments, and personalized hints.
+\textbf{How the System Improves Alex's Learning:}
+\begin{itemize}
+    \item \textbf{Contextualized Practice:} Questions are embedded in 3D scenarios, turning passive review into active, problem-based learning.
+    \item \textbf{Adaptive Sequencing:} The system adjusts domain, format, and difficulty using Alex's accuracy and hint dependency.
+    \item \textbf{Explanatory Feedback:} Each response is followed by concise reasoning to support misconception repair and deeper understanding.
+    \item \textbf{Mastery-Oriented Progress:} Topic-level performance tracking helps Alex identify and strengthen weak knowledge areas.
+    \item \textbf{Sustained Engagement:} Collectible card sets, character unlock milestones, and future leaderboard competition promote consistent study participation.
+\end{itemize}
+
+The proposed system addresses these frustrations by transforming the conventional note-upload study workflow into an adaptive and immersive learning experience. For Alex, this means short study sessions become structured micro-learning cycles that improve both engagement and academic performance.
 
 \section{Proposed Features \& Value Proposition}
 
@@ -65,15 +83,39 @@ The proposed system aims to address these frustrations by providing adaptive dif
 The proposed application is an AI-powered 3D escape room built as a web-based interactive experience. Key features include:
 
 \begin{itemize}
-    \item \textbf{3D Interactive Environment:} Users explore a virtual room rendered using modern web-based 3D technologies.
+    \item \textbf{3D Multi-Theme Environment:} Users explore virtual scenes rendered with modern web-based 3D technologies. Initial themes include beach and classic escape room styles, with additional 3D models and theme packs planned.
     
     \item \textbf{Object-Based Interaction:} Users can click on objects (e.g., doors, safes, paintings) to trigger puzzles and clues.
     
-    \item \textbf{AI-Generated Puzzles:} Each game session generates unique puzzles dynamically using a Large Language Model (LLM).
+    \item \textbf{Personalized Content Integration (User Materials):} Students can upload PDFs, lecture notes, or textbook excerpts to ground question generation in their own coursework.
+
+    \item \textbf{Automated Material Analysis:} The system parses uploaded content into structured learning objectives and tags them by topic and difficulty.
+
+    \item \textbf{AI-Generated Multi-Domain and Course-Aligned Questions:} Each session generates unique questions across multiple domains using a Large Language Model (LLM), while prioritizing uploaded materials when available.
+
+    \item \textbf{Multiple Question Formats:} The AI can output different challenge types, including multiple-choice, short-answer, ordering, and clue interpretation questions.
     
     \item \textbf{Adaptive Hint System:} The system provides hints that adjust based on user progress and difficulty.
+
+    \item \textbf{Learning Feedback Engine:} The system explains answer reasoning and highlights related concepts after each challenge.
+
+    \item \textbf{Mastery Tracking:} Domain-level performance metrics are used to adapt future questions and target weaker knowledge areas.
+
+    \item \textbf{Puzzle Completion Card Reveal:} Each completed puzzle grants one card reveal, encouraging students to finish challenges consistently.
+
+    \item \textbf{Card Set Collection and Character Unlock:} Cards are organized into multiple themed sets. When a student completes an entire set, the corresponding character is unlocked automatically (without in-game currency).
+
+    \item \textbf{Midjourney-Generated Card Art Pipeline:} Card visuals are generated using Midjourney, then curated and integrated as collectible set assets linked to character rewards.
     
     \item \textbf{Game Progression System:} A structured sequence of puzzles must be solved to unlock the final escape condition.
+\end{itemize}
+
+\subsection{Planned Post-MVP Extensions}
+
+\begin{itemize}
+    \item \textbf{Account Login and Profiles:} Login will be added in a later phase to persist user progress, inventory, and statistics across sessions.
+    \item \textbf{Leaderboard System:} Global and friend-based rankings will allow users to compete using completion time, score, and accuracy metrics.
+    \item \textbf{Seasonal Content Expansion:} New themes, character sets, and challenge collections can be released as content updates.
 \end{itemize}
 
 \subsection{Value Proposition}
@@ -81,11 +123,28 @@ The proposed application is an AI-powered 3D escape room built as a web-based in
 The system addresses the limitations of traditional escape room experiences by:
 
 \begin{itemize}
-    \item Increasing replayability through dynamic content generation
-    \item Enhancing user engagement with adaptive difficulty
-    \item Providing immersive interaction through a 3D environment
-    \item Offering personalized experiences tailored to user behavior
+    \item Increasing replayability through dynamic question generation and rotating visual themes
+    \item Bridging generic trivia and course-specific preparation through user-material-grounded challenges
+    \item Enhancing engagement with adaptive difficulty and mixed question formats
+    \item Providing immersive interaction through 3D exploration and object-based gameplay
+    \item Encouraging long-term retention with collectible card-set progression and milestone-based character unlocks
+    \item Supporting future social competition through leaderboard integration
 \end{itemize}
+
+\subsection{Student Learning Impact}
+
+Beyond entertainment, the platform is designed as an interactive learning environment for university-age users. Learning is fostered through:
+
+\begin{itemize}
+    \item \textbf{Retrieval Practice:} Frequent question-solving improves recall of key concepts.
+    \item \textbf{Interleaved Learning:} Mixed domains and formats reduce rote memorization and improve transfer across topics.
+    \item \textbf{Curriculum Alignment:} Questions grounded in uploaded course materials improve relevance and direct exam preparation value.
+    \item \textbf{Scaffolded Support:} Adaptive hints provide guidance in steps, helping learners stay challenged but not overwhelmed.
+    \item \textbf{Feedback for Reflection:} AI explanations help students understand misconceptions instead of only seeing correct/incorrect labels.
+    \item \textbf{Long-Term Motivation:} Card-set collection milestones and social comparison features encourage repeated practice sessions.
+\end{itemize}
+
+For the persona Alex, this means short gaming sessions also become productive micro-learning sessions: he practices reasoning, receives immediate correction, and progressively improves weak areas while staying engaged.
 
 \section{Technical Architecture \& AI Stack}
 
@@ -95,7 +154,8 @@ The frontend will be developed using:
 \begin{itemize}
     \item React (Vite) for application structure
     \item React Three Fiber (Three.js) for 3D rendering
-    \item Standard React components for UI interaction
+    \item React-based HUD and modal components for questions, hints, inventory, customization, and material upload
+    \item Client-side state management for theme selection, session progress, card collection display, and personalized question-bank status
 \end{itemize}
 
 \subsection{Backend}
@@ -103,7 +163,24 @@ The frontend will be developed using:
 The backend will be implemented using:
 \begin{itemize}
     \item Python FastAPI for API development
-    \item Game state management for tracking user progress
+    \item Game state services for tracking puzzle progression and session outcomes
+    \item Document ingestion services for extracting and chunking uploaded study materials
+    \item Question orchestration logic for domain, type, and difficulty control
+    \item Learning analytics services for tracking mastery by topic and hint dependency
+    \item Card-reward and set-completion services for progression rewards
+    \item Supabase integration for managed PostgreSQL storage and secure data access
+    \item Future authentication and leaderboard modules for persistent profiles and competitive ranking
+\end{itemize}
+
+\subsection{Data Layer}
+
+\begin{itemize}
+    \item Supabase (PostgreSQL) as the primary cloud database
+    \item Storage for player profiles, scores, question history, card inventories, and set-completion unlock records
+    \item Storage for uploaded material metadata, processed text chunks, and session-specific question-bank references
+    \item Learning records including topic-level accuracy, response time, and hint usage history
+    \item Row-level security policies to protect per-user progression and inventory data
+    \item Optional use of Supabase Auth in the post-MVP login phase
 \end{itemize}
 
 \subsection{AI Services}
@@ -111,38 +188,51 @@ The backend will be implemented using:
 \begin{itemize}
     \item \textbf{LLM API:}
     \begin{itemize}
-        \item Puzzle generation
-        \item Hint generation
-        \item Narrative descriptions
+        \item Multi-domain and curriculum-grounded question generation with answer key creation
+        \item Hint generation with adaptive difficulty control
+        \item Explanation feedback to improve learning and clarity
+        \item Misconception-aware follow-up prompts to reinforce weak concepts
     \end{itemize}
     
     \item \textbf{Prompt Engineering:}
     \begin{itemize}
-        \item Structured prompts to ensure consistent puzzle format
-        \item Controlled difficulty levels
+        \item Structured prompts to ensure consistent output format across question types
+        \item Domain-specific templates for different fields (STEM, humanities, and general knowledge)
+        \item Source-priority rules that favor uploaded user materials over generic knowledge when available
+        \item Controlled difficulty calibration based on player performance
+        \item Learning-objective tagging so generated questions align with target skills
     \end{itemize}
     
-    \item \textbf{(Optional) RAG:}
+    \item \textbf{RAG Pipeline for User Materials:}
     \begin{itemize}
-        \item Retrieval of predefined puzzle templates to improve quality
+        \item Retrieval from uploaded notes and course documents to ground question generation
+        \item Retrieval of curated templates to improve factual quality and consistency
     \end{itemize}
     
-    \item \textbf{(Optional) Image Generation:}
+    \item \textbf{Midjourney-Assisted Image Generation:}
     \begin{itemize}
-        \item Generate textures or visual clues for the 3D environment
+        \item Generate collectible card-set illustrations and style references
+        \item Link each curated card set to a corresponding unlockable character
+        \item Human curation before integration into final game assets
     \end{itemize}
 \end{itemize}
 
 \subsection{System Flow}
 
 \begin{enumerate}
-    \item User interacts with a 3D object in the frontend
-    \item A request is sent to the backend API
-    \item The backend calls the LLM to generate a puzzle
-    \item The puzzle is returned and displayed to the user
-    \item User submits an answer
-    \item Backend validates the answer and updates game state
-    \item If correct, progression is unlocked; otherwise, hints are provided
+    \item User starts a session (guest in MVP; login-enabled in a future phase)
+    \item User uploads optional study materials (e.g., a lecture PDF or textbook chapter)
+    \item Backend extracts text, segments content, and tags learning objectives by topic and difficulty
+    \item LLM and RAG services generate a personalized session question bank, prioritizing uploaded materials
+    \item User chooses a scene theme and enters the 3D environment
+    \item User interacts with a 3D object, triggering a challenge request
+    \item Backend selects an appropriate question from the personalized bank and calibrates difficulty
+    \item Challenge is displayed to the user through the frontend UI
+    \item User submits an answer; backend validates and updates progression state
+    \item Session progress, learning analytics, rewards, and unlock states are persisted in Supabase
+    \item The system provides explanation feedback and adaptive hints based on the learner's response
+    \item If correct, the system grants score and one card reveal; if incorrect, it increases support and retries
+    \item When a full card set is collected, the corresponding character is unlocked automatically; leaderboard updates are posted when account mode is enabled
 \end{enumerate}
 
 \section{Budget Estimation}
@@ -150,20 +240,22 @@ The backend will be implemented using:
 \subsection{Cost Breakdown}
 
 \begin{itemize}
-    \item HKUST API usage: \$0 HKD
-    \item Hosting (Vercel): Free
-    \item 3D assets (Sketchfab / open-source): Free
-    \item Development tools: Free
+    \item HKUST API usage (development quota): \$0 HKD (expected during course period)
+    \item Hosting (Vercel or equivalent free tier): \$0 for prototype
+    \item Supabase (free tier for MVP): \$0 initially
+    \item 3D assets (open-source + self-produced): \$0 to low one-time cost
+    \item Midjourney subscription for concept generation: approximately US\$10--US\$30 per month
+    \item Development tools: mostly free student/individual tiers
 \end{itemize}
 
 \subsection{Justification}
 
-The primary cost driver is API usage for generating puzzles and hints. However, usage can be optimized through caching and limiting unnecessary API calls. The project does not require expensive GPU resources or paid datasets, making it cost-efficient.
+The main variable costs are LLM usage and Midjourney subscription, with Supabase remaining free in the MVP stage under typical usage limits. Costs can be controlled through output caching, generation throttling, and batch production of cosmetic assets. This keeps the architecture cost-efficient for a student project while still supporting future expansion.
 
 \section{Conclusion}
 
-This project proposes an AI-powered adaptive 3D escape room that enhances user engagement through dynamic puzzle generation, immersive interaction, and personalized gameplay. By integrating modern web technologies with AI capabilities, the system transforms traditional static puzzle experiences into a responsive and intelligent interactive environment.
+This project proposes an AI-powered adaptive 3D escape room that combines personalized challenge generation, immersive themed environments, and long-term progression mechanics. By integrating modern web technologies with AI services, the system moves beyond static puzzle gameplay and delivers a more personalized and replayable user experience.
 
-The design not only addresses key limitations in current escape room systems but also demonstrates the potential of AI in enhancing digital user experiences.
+The MVP focuses on adaptive gameplay, card-set collection progression, and 3D immersion, while later phases introduce login and leaderboard competition. This phased approach is technically feasible, budget-conscious, and well aligned with user engagement goals.
 
 \end{document}
