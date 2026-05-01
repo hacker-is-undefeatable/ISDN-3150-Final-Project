@@ -1,0 +1,136 @@
+You are a senior full-stack engineer.
+
+I am building a web-based AI-powered 3D escape room using:
+- React (Vite)
+- React Three Fiber (Three.js) for the game
+- Supabase (Auth + PostgreSQL)
+
+Currently, I already have:
+- A working 3D game scene
+- A map/environment rendered using React Three Fiber
+
+I need you to implement a complete authentication flow and pre-game UI.
+
+----------------------------------
+
+🎯 REQUIREMENTS
+
+1. LANDING PAGE (Before Login)
+- Modern, clean UI (tailwind or CSS modules)
+- Sections:
+  - Hero section (title: "AI Escape Room")
+  - Short description
+  - "Start Game" button → leads to login
+  - Optional: background animation or simple 3D canvas preview
+- Should feel like a game intro screen
+
+----------------------------------
+
+2. AUTHENTICATION SYSTEM (Supabase)
+
+Implement:
+- Login page
+- Register page
+
+Features:
+- Email + password authentication (Supabase Auth)
+- Form validation
+- Error handling (invalid login, weak password, etc.)
+- Loading states
+
+----------------------------------
+
+3. USER STATE MANAGEMENT
+
+- Maintain auth session globally
+- Use React Context or Zustand
+- Persist login (refresh should not log user out)
+
+----------------------------------
+
+4. ROUTING
+
+Use React Router:
+
+Routes:
+- "/" → Landing Page
+- "/login" → Login Page
+- "/register" → Register Page
+- "/game" → Protected Game Page
+
+----------------------------------
+
+5. PROTECTED ROUTE
+
+- If NOT logged in → redirect to /login
+- If logged in → allow access to /game
+
+----------------------------------
+
+6. GAME PAGE INTEGRATION
+
+- Wrap my existing 3D game component inside the protected route
+- Example:
+  <GameScene />
+
+- Add a simple UI overlay:
+  - Logout button (top-right)
+  - User email display
+
+----------------------------------
+
+7. LOGOUT FUNCTION
+
+- Call Supabase signOut()
+- Redirect to "/"
+
+----------------------------------
+
+8. CODE STRUCTURE
+
+Use clean structure:
+
+src/
+ ├── pages/
+ │    ├── Landing.jsx
+ │    ├── Login.jsx
+ │    ├── Register.jsx
+ │    ├── Game.jsx
+ │
+ ├── components/
+ │    ├── ProtectedRoute.jsx
+ │
+ ├── context/
+ │    ├── AuthContext.jsx
+ │
+ ├── lib/
+ │    ├── supabaseClient.js
+
+----------------------------------
+
+9. SUPABASE SETUP
+
+- Show how to initialize client
+- Use environment variables:
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY
+
+----------------------------------
+
+10. UI STYLE
+
+- Clean, minimal, modern (like game UI)
+- Dark theme preferred
+- Subtle animations (hover, fade-in)
+
+----------------------------------
+
+11. IMPORTANT
+
+- DO NOT use placeholder pseudo-code
+- Provide FULL working code for ALL files
+- Make sure everything is connected and runnable
+
+----------------------------------
+
+Now generate the full implementation.
