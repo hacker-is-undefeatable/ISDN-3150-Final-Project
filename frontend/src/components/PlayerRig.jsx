@@ -71,7 +71,7 @@ function VrmAvatar({
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
-    loader.load("/model/model.vrm", (gltf) => {
+    loader.load("/model/model01.vrm", (gltf) => {
       const vrm = gltf.userData.vrm;
       if (!vrm) return;
 
@@ -448,6 +448,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange 
       x: Number(positionRef.current.x.toFixed(2)),
       y: Number(positionRef.current.y.toFixed(2)),
       z: Number(positionRef.current.z.toFixed(2)),
+      yaw: Number(yawRef.current.toFixed(4)),
     });
   }, [onPositionChange]);
 
@@ -588,7 +589,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange 
 
         if (signature !== positionReport.lastSignature) {
           positionReport.lastSignature = signature;
-          onPositionChange({ x, y, z });
+          onPositionChange({ x, y, z, yaw: Number(yawRef.current.toFixed(4)) });
         }
       }
     }

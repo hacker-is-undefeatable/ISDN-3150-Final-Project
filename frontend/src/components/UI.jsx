@@ -64,6 +64,8 @@ export default function UI({
   };
 
   const markerStyle = getMarkerStyle();
+  const yawRad = Number.isFinite(playerCoords?.yaw) ? playerCoords.yaw : 0;
+  const fovRotationDeg = 180 - (yawRad * 180) / Math.PI;
   const completedSpotSet = new Set(completedSpotIds || []);
   const selectedLabel = selectedObject
     ? selectedObject.replace("_", " ").toUpperCase()
@@ -160,7 +162,6 @@ export default function UI({
 
               return (
                 <div
-                  key={spot.id}
                   className={`minimap-spot ${stateClass}`}
                   style={spotStyle}
                   title={spot.label || spot.id}
@@ -168,6 +169,13 @@ export default function UI({
               );
             })}
           </div>
+          <div
+            className="minimap-fov"
+            style={{
+              ...markerStyle,
+              transform: `translate(-50%, -50%) rotate(${fovRotationDeg}deg)`,
+            }}
+          />
           <div className="minimap-marker" style={markerStyle} />
         </div>
       </div>

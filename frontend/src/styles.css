@@ -229,6 +229,24 @@ body,
   inset: 0;
 }
 
+.minimap-fov {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.5) 0deg,
+    rgba(255, 255, 255, 0.5) 34deg,
+    rgba(255, 255, 255, 0) 34deg,
+    rgba(255, 255, 255, 0) 360deg
+  );
+  clip-path: polygon(50% 50%, 11% 10%, 50% 0%, 89% 10%);
+  transform-origin: center center;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .minimap-spot {
   position: absolute;
   width: 8px;
