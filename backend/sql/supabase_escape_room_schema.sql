@@ -47,6 +47,8 @@ create table if not exists public.characters (
   id smallint primary key,
   name text not null unique,
   description text not null,
+  model_path text not null,
+  image_path text not null,
   created_at timestamptz not null default timezone('utc', now()),
   constraint characters_id_range check (id between 1 and 11)
 );
@@ -367,23 +369,25 @@ execute function public.seed_user_cards_for_new_card();
 -- 5) STATIC SEED DATA (11 CHARACTERS, 88 CARDS)
 -- =========================
 
-insert into public.characters (id, name, description)
+insert into public.characters (id, name, description, model_path, image_path)
 values
-  (1,  'Arlecchino', 'Crimson tactician with high-risk precision combat style.'),
-  (2,  'Charlotte',  'Investigative reporter using sharp insight and support utility.'),
-  (3,  'Furina',     'Hydro performer controlling rhythm, pressure, and adaptation.'),
-  (4,  'Ganyu',      'Calm cryo archer focused on timing and sustained precision.'),
-  (5,  'Keqing',     'Electro duelist built around burst movement and rapid execution.'),
-  (6,  'Kokomi',     'Strategic hydro leader with balanced sustain and control.'),
-  (7,  'Nahida',     'Dendro analyst linking systems through layered reactions.'),
-  (8,  'Navia',      'Geo commander specializing in momentum and tactical shots.'),
-  (9,  'Neuvillette','Hydro judge channeling heavy pressure and field dominance.'),
-  (10, 'Skirk',      'Abyssal swordswoman emphasizing discipline and aggressive tempo.'),
-  (11, 'Yelan',      'Hydro operative leveraging mobility, timing, and precision tools.')
+  (1,  'Arlecchino', 'Crimson tactician with high-risk precision combat style.', 'model00001.vrm', '/character-img-00001.png'),
+  (2,  'Charlotte',  'Investigative reporter using sharp insight and support utility.', 'model00010.vrm', '/character-img-00010.png'),
+  (3,  'Furina',     'Hydro performer controlling rhythm, pressure, and adaptation.', 'model00011.vrm', '/character-img-00011.png'),
+  (4,  'Ganyu',      'Calm cryo archer focused on timing and sustained precision.', 'model00100.vrm', '/character-img-00100.png'),
+  (5,  'Keqing',     'Electro duelist built around burst movement and rapid execution.', 'model00101.vrm', '/character-img-00101.png'),
+  (6,  'Kokomi',     'Strategic hydro leader with balanced sustain and control.', 'model00110.vrm', '/character-img-00110.png'),
+  (7,  'Nahida',     'Dendro analyst linking systems through layered reactions.', 'model00111.vrm', '/character-img-00111.png'),
+  (8,  'Navia',      'Geo commander specializing in momentum and tactical shots.', 'model01000.vrm', '/character-img-01000.png'),
+  (9,  'Neuvillette','Hydro judge channeling heavy pressure and field dominance.', 'model01001.vrm', '/character-img-01001.png'),
+  (10, 'Skirk',      'Abyssal swordswoman emphasizing discipline and aggressive tempo.', 'model01010.vrm', '/character-img-01010.png'),
+  (11, 'Yelan',      'Hydro operative leveraging mobility, timing, and precision tools.', 'model00000.vrm', '/character-img-00000.png')
 on conflict (id) do update
 set
   name = excluded.name,
-  description = excluded.description;
+  description = excluded.description,
+  model_path = excluded.model_path,
+  image_path = excluded.image_path;
 
 insert into public.cards (character_id, card_index, name)
 select
@@ -611,19 +615,19 @@ where preferred_model is null;
 -- 4) Ensure static characters exist. This will not overwrite manual edits because it uses
 -- ON CONFLICT DO NOTHING. If you want to overwrite, run the earlier seed block in the file
 -- (it uses ON CONFLICT DO UPDATE); here we only ensure missing rows are present.
-insert into public.characters (id, name, description)
+insert into public.characters (id, name, description, model_path, image_path)
 values
-  (1,  'Arlecchino', 'Crimson tactician with high-risk precision combat style.'),
-  (2,  'Charlotte',  'Investigative reporter using sharp insight and support utility.'),
-  (3,  'Furina',     'Hydro performer controlling rhythm, pressure, and adaptation.'),
-  (4,  'Ganyu',      'Calm cryo archer focused on timing and sustained precision.'),
-  (5,  'Keqing',     'Electro duelist built around burst movement and rapid execution.'),
-  (6,  'Kokomi',     'Strategic hydro leader with balanced sustain and control.'),
-  (7,  'Nahida',     'Dendro analyst linking systems through layered reactions.'),
-  (8,  'Navia',      'Geo commander specializing in momentum and tactical shots.'),
-  (9,  'Neuvillette','Hydro judge channeling heavy pressure and field dominance.'),
-  (10, 'Skirk',      'Abyssal swordswoman emphasizing discipline and aggressive tempo.'),
-  (11, 'Yelan',      'Hydro operative leveraging mobility, timing, and precision tools.')
+  (1,  'Arlecchino', 'Crimson tactician with high-risk precision combat style.', 'model00001.vrm', '/character-img-00001.png'),
+  (2,  'Charlotte',  'Investigative reporter using sharp insight and support utility.', 'model00010.vrm', '/character-img-00010.png'),
+  (3,  'Furina',     'Hydro performer controlling rhythm, pressure, and adaptation.', 'model00011.vrm', '/character-img-00011.png'),
+  (4,  'Ganyu',      'Calm cryo archer focused on timing and sustained precision.', 'model00100.vrm', '/character-img-00100.png'),
+  (5,  'Keqing',     'Electro duelist built around burst movement and rapid execution.', 'model00101.vrm', '/character-img-00101.png'),
+  (6,  'Kokomi',     'Strategic hydro leader with balanced sustain and control.', 'model00110.vrm', '/character-img-00110.png'),
+  (7,  'Nahida',     'Dendro analyst linking systems through layered reactions.', 'model00111.vrm', '/character-img-00111.png'),
+  (8,  'Navia',      'Geo commander specializing in momentum and tactical shots.', 'model01000.vrm', '/character-img-01000.png'),
+  (9,  'Neuvillette','Hydro judge channeling heavy pressure and field dominance.', 'model01001.vrm', '/character-img-01001.png'),
+  (10, 'Skirk',      'Abyssal swordswoman emphasizing discipline and aggressive tempo.', 'model01010.vrm', '/character-img-01010.png'),
+  (11, 'Yelan',      'Hydro operative leveraging mobility, timing, and precision tools.', 'model00000.vrm', '/character-img-00000.png')
 on conflict (id) do nothing;
 
 commit;
