@@ -1,0 +1,163 @@
+You are a senior frontend engineer and game UI designer.
+
+I am building a web-based AI-powered 3D escape game using:
+- React (Vite)
+- Tailwind CSS
+- React Router
+- Supabase (Auth + PostgreSQL)
+
+I already have:
+- Login / Register system
+- Protected route (/game)
+- 3D scene component (GameScene.jsx)
+
+----------------------------------
+
+🎯 TASK
+
+Build a COMPLETE post-login GAME LOBBY page (Game.jsx).
+
+This is NOT a dashboard.
+It must feel like a GAME INTERFACE.
+
+----------------------------------
+
+🎮 CORE FEATURES
+
+1. TOP BAR (minimal, clean)
+- User email (from Supabase)
+- Total score (placeholder state is fine)
+- Logout button (top-right)
+
+----------------------------------
+
+2. SCENE SELECTION (MAIN FOCUS)
+
+Create selectable scene cards:
+
+Scenes:
+- Dungeon
+- Beach
+- Castle
+
+Each card includes:
+- Name
+- Short description
+- Hover animation
+- Selected state highlight
+
+User can select ONE scene.
+
+----------------------------------
+
+3. ENTER GAME BUTTON
+
+- Large, centered button:
+  "ENTER ESCAPE ROOM"
+
+- Disabled if no scene selected
+- On click:
+  → Navigate to actual game scene
+  → Pass selected scene as prop or state
+
+----------------------------------
+
+4. CHARACTER SECTION
+
+- Display 11 characters
+- Horizontal scroll or grid
+
+Each character:
+- Locked or unlocked state
+- Visual difference (greyed out if locked)
+- Click to select
+
+----------------------------------
+
+5. CARD COLLECTION PANEL
+
+When a character is selected:
+
+Display:
+- 8 card slots (grid 2x4)
+- Locked vs unlocked state
+- Progress text:
+  "5 / 8 cards collected"
+
+Use mock data if needed.
+
+----------------------------------
+
+6. STATS PANEL
+
+Simple stats:
+- Total cards unlocked
+- Total runs played
+- Best score
+
+----------------------------------
+
+7. STATE MANAGEMENT
+
+- Use React state or context
+- Store:
+  - selectedScene
+  - selectedCharacter
+
+----------------------------------
+
+8. STYLE REQUIREMENTS
+
+- Dark theme (game style)
+- Clean and modern
+- Subtle animations:
+  - hover scale
+  - glow on selected
+- Use Tailwind CSS
+
+----------------------------------
+
+9. COMPONENT STRUCTURE
+
+Organize into components:
+
+- Game.jsx (main page)
+- SceneSelector.jsx
+- CharacterSelector.jsx
+- CardGrid.jsx
+- StatsPanel.jsx
+- TopBar.jsx
+
+----------------------------------
+
+10. MOCK DATA
+
+Use temporary mock data:
+
+- 11 characters
+- Each has:
+  - unlocked: true/false
+  - cards: [true/false x8]
+
+----------------------------------
+
+11. BONUS (if possible)
+
+- Add loading transition when entering game
+- Add simple animation (fade in)
+
+----------------------------------
+
+12. IMPORTANT
+
+- Provide FULL working code
+- No pseudo-code
+- Must be copy-paste runnable
+- Keep it clean and modular
+
+----------------------------------
+
+OUTPUT:
+- All React component files
+- Example routing usage
+- Any required helper files

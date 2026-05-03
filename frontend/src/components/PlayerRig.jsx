@@ -6,6 +6,7 @@ import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
 const SPEED = 3.2;
 const AVATAR_YAW_OFFSET = 0;
+const NON_DEFAULT_AVATAR_YAW_OFFSET = Math.PI;
 const LOOK_SENSITIVITY = 0.005;
 const MIN_PITCH = -0.85;
 const MAX_PITCH = 0.75;
@@ -47,6 +48,10 @@ function setBlink(vrm, value) {
   if (manager?.setValue) manager.setValue("blink", value);
 }
 
+function isDefaultAvatarModel(avatarModelPath) {
+  return typeof avatarModelPath === "string" && avatarModelPath.includes("model00000.vrm");
+}
+
 function VrmAvatar({
   positionRef,
   yawRef,
@@ -55,9 +60,12 @@ function VrmAvatar({
   walkTimeRef,
   isGroundedRef,
   verticalVelocityRef,
+  avatarModelPath,
 }) {
   const [vrmScene, setVrmScene] = useState(null);
   const [vrmInstance, setVrmInstance] = useState(null);
+  const isDefaultModel = isDefaultAvatarModel(avatarModelPath);
+  const avatarYawOffset = isDefaultModel ? AVATAR_YAW_OFFSET : NON_DEFAULT_AVATAR_YAW_OFFSET;
 
   const fallbackRef = useRef();
   const idleBoneRotationsRef = useRef(null);
@@ -70,13 +78,21 @@ function VrmAvatar({
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
+    let cancelled = false;
 
-    loader.load("/model/model01.vrm", (gltf) => {
+    setVrmScene(null);
+    setVrmInstance(null);
+    bonesRef.current = {};
+    idleBoneRotationsRef.current = null;
+
+    loader.load(avatarModelPath, (gltf) => {
+      if (cancelled) return;
+
       const vrm = gltf.userData.vrm;
       if (!vrm) return;
 
       vrm.scene.scale.setScalar(1.35);
-      vrm.scene.rotation.y = AVATAR_YAW_OFFSET;
+      vrm.scene.rotation.y = avatarYawOffset;
 
       const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
 
@@ -99,8 +115,16 @@ function VrmAvatar({
 
       setVrmScene(vrm.scene);
       setVrmInstance(vrm);
+    }, undefined, () => {
+      if (cancelled) return;
+      setVrmScene(null);
+      setVrmInstance(null);
     });
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [avatarModelPath, avatarYawOffset]);
 
   useFrame((_, delta) => {
     const pos = positionRef.current;
@@ -114,7 +138,7 @@ function VrmAvatar({
       const groundedMove = grounded ? move : move * 0.35;
       const bob = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.03 * groundedMove;
       vrmScene.position.set(pos.x, pos.y + CHARACTER_ROOT_OFFSET + bob, pos.z);
-      vrmScene.rotation.y = yaw + AVATAR_YAW_OFFSET;
+      vrmScene.rotation.y = yaw + avatarYawOffset;
       vrmScene.visible = visible;
     }
 
@@ -122,6 +146,8 @@ function VrmAvatar({
       const locomotionFactor = grounded ? 1 : 0.35;
       const swing = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.2 * move * locomotionFactor;
       const leg = Math.sin(t * WALK_CYCLE_FREQUENCY) * 0.35 * move * locomotionFactor;
+      const armRestZ = isDefaultModel ? 1.1 : -1.3;
+      const armLiftFactor = isDefaultModel ? 1 : 0.35;
 
       const airborneBlend = grounded ? 0 : 1;
       const ascentBlend = grounded ? 0 : clamp(verticalVelocity / JUMP_VELOCITY, 0, 1);
@@ -139,11 +165,19 @@ function VrmAvatar({
 
       apply(
         "leftUpperArm",
-        new THREE.Euler(-swing - airborneBlend * 0.24, 0, -1.1 + airborneBlend * 0.08)
+        new THREE.Euler(
+          -swing * armLiftFactor - airborneBlend * 0.24 * armLiftFactor,
+          0,
+          -armRestZ + airborneBlend * 0.08
+        )
       );
       apply(
         "rightUpperArm",
-        new THREE.Euler(swing - airborneBlend * 0.24, 0, 1.1 - airborneBlend * 0.08)
+        new THREE.Euler(
+          swing * armLiftFactor - airborneBlend * 0.24 * armLiftFactor,
+          0,
+          armRestZ - airborneBlend * 0.08
+        )
       );
 
       apply(
@@ -206,7 +240,7 @@ function VrmAvatar({
 
 /* ===================== PLAYER RIG ===================== */
 
-export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange }) {
+export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange, avatarModelPath }) {
   const { camera } = useThree();
 
   const pressed = useRef(new Set());
@@ -640,6 +674,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange 
       isGroundedRef={isGroundedRef}
       verticalVelocityRef={verticalVelocityRef}
       visible={mode === "third-person"}
+      avatarModelPath={avatarModelPath}
     />
   );
 }
