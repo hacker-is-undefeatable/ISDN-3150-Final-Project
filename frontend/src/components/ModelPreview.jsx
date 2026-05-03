@@ -1,0 +1,112 @@
+import React, { useRef, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { VRMLoaderPlugin } from "@pixiv/three-vrm";
+import { OrbitControls } from "@react-three/drei";
+
+function VrmPreview({ avatarModelPath }) {
+  const group = useRef();
+  const vrmRef = useRef();
+
+  useEffect(() => {
+    let cancelled = false;
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    if (!avatarModelPath) return;
+
+    loader.load(avatarModelPath, (gltf) => {
+      if (cancelled) return;
+      const vrm = gltf.userData.vrm;
+      if (!vrm) return;
+      // reset and adjust to fit preview box
+      vrm.scene.rotation.set(0, 0, 0);
+      vrm.scene.scale.setScalar(1.1);
+      vrm.scene.rotation.y = Math.PI; // face camera
+      vrm.scene.position.set(0, -1, 0);
+      vrmRef.current = vrm;
+      if (group.current) {
+        group.current.clear();
+        group.current.add(vrm.scene);
+      }
+
+      // Apply a gentle resting/hand-down pose for non-default models so
+      // the preview matches the in-game lowered-arms appearance.
+      try {
+        const isDefaultModel = typeof avatarModelPath === "string" && avatarModelPath.includes("model00000.vrm");
+        const armRestZ = isDefaultModel ? 1.1 : -1.3; // roll offset for upper arm
+        const armLift = isDefaultModel ? 1 : 0.12; // reduces swing/lift for non-defaults
+
+        const get = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
+
+        const leftUpper = get("leftUpperArm");
+        const rightUpper = get("rightUpperArm");
+        const leftLower = get("leftLowerArm");
+        const rightLower = get("rightLowerArm");
+
+        if (leftUpper) {
+          const e = new THREE.Euler(-0.05 * armLift, 0, -armRestZ);
+          leftUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+        }
+        if (rightUpper) {
+          const e = new THREE.Euler(-0.05 * armLift, 0, armRestZ);
+          rightUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+        }
+
+        // small forearm twist so palms face slightly inward/down
+        if (leftLower) {
+          const e = new THREE.Euler(0, 0.15, 0);
+          leftLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+        }
+        if (rightLower) {
+          const e = new THREE.Euler(0, -0.15, 0);
+          rightLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+        }
+      } catch (e) {
+        // non-fatal, preview still works without pose tweak
+        // silently ignore any bone access errors
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [avatarModelPath]);
+
+  useFrame((_, delta) => {
+    if (vrmRef.current) {
+      try {
+        vrmRef.current.update(delta);
+      } catch (e) {}
+    }
+  });
+
+  return <group ref={group} />;
+}
+
+export default function ModelPreview({ avatarModelPath }) {
+  return (
+    <div className="model-preview" onContextMenu={(e) => e.preventDefault()}>
+      <Canvas camera={{ position: [0, 1.2, 2.5], fov: 40 }}>
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[0, 5, 5]} intensity={0.8} />
+        <VrmPreview avatarModelPath={avatarModelPath} />
+        <OrbitControls
+          enableDamping={true}
+          enableZoom={true}
+          enableRotate={true}
+          enablePan={true}
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
+          }}
+          // limit vertical rotation a bit so model doesn't flip
+          minPolarAngle={Math.PI / 6}
+          maxPolarAngle={Math.PI - Math.PI / 6}
+        />
+      </Canvas>
+    </div>
+  );
+}

@@ -475,6 +475,28 @@ a {
 .nav-bar__logout { background:transparent; border:1px solid var(--border); color:var(--muted); padding:8px 12px; border-radius:8px }
 .nav-bar__logout:hover { color:var(--text) }
 
+/* Character selection layout */
+.character-selection { display:flex; gap:20px }
+.character-selection__left { width:360px; height:420px; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden }
+.character-selection__right { flex:1 }
+.character-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; max-height:480px; overflow:auto; padding:8px }
+.character-grid__item { background: var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px; position:relative }
+.character-grid__btn { background:transparent; border:none; width:100%; text-align:center; color:var(--text); cursor:pointer; padding:0 }
+.character-grid__btn:disabled { cursor:not-allowed; opacity:0.95 }
+.character-grid__img-wrap { width:100%; height:120px; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.25); border-radius:8px; overflow:hidden; position:relative }
+.character-grid__img { max-width:100%; max-height:100%; display:block }
+.character-grid__name { margin-top:8px; font-size:0.95rem }
+.character-grid__item--active { box-shadow: 0 12px 40px rgba(255,198,77,0.08); border-color: rgba(255,198,77,0.18) }
+.character-grid__item--locked { opacity:0.82 }
+.character-grid__item--locked .character-grid__img-wrap { filter: grayscale(1) saturate(0.6) }
+.character-grid__lock-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.18); pointer-events:none }
+.character-grid__lock-icon { width:66px; height:66px; object-fit:contain; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.5)) }
+
+/* ensure model preview canvas fits its box */
+.model-preview { width: 100%; height: 100%; display: block }
+.model-preview canvas { width: 100% !important; height: 100% !important; display: block }
+
+
 
 .landing-preview__header {
   position: relative;
