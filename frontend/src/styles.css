@@ -465,7 +465,6 @@ a {
 /* Nav bar */
 .nav-bar { background: linear-gradient(180deg, rgba(6,8,16,0.9), rgba(8,10,18,0.88)); border-bottom:1px solid var(--border) }
 .nav-bar__list { list-style:none; margin:0; padding:0; display:flex; gap:8px; align-items:center; padding:8px 20px }
-.nav-bar__item { }
 .nav-bar__button { background:transparent; border:none; color:var(--muted); padding:8px 12px; border-radius:8px; font-weight:700 }
 .nav-bar__button:hover { color:var(--text); transform:translateY(-2px) }
 .nav-bar__item--active .nav-bar__button { color:var(--accent); box-shadow: 0 8px 30px rgba(77,166,255,0.06); border-bottom:3px solid rgba(77,166,255,0.14) }
