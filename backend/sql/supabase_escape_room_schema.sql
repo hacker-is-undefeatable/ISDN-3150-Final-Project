@@ -371,17 +371,17 @@ execute function public.seed_user_cards_for_new_card();
 
 insert into public.characters (id, name, description, model_path, image_path)
 values
-  (1,  'Arlecchino', 'Crimson tactician with high-risk precision combat style.', 'model00001.vrm', '/character-img-00001.png'),
-  (2,  'Charlotte',  'Investigative reporter using sharp insight and support utility.', 'model00010.vrm', '/character-img-00010.png'),
-  (3,  'Furina',     'Hydro performer controlling rhythm, pressure, and adaptation.', 'model00011.vrm', '/character-img-00011.png'),
-  (4,  'Ganyu',      'Calm cryo archer focused on timing and sustained precision.', 'model00100.vrm', '/character-img-00100.png'),
-  (5,  'Keqing',     'Electro duelist built around burst movement and rapid execution.', 'model00101.vrm', '/character-img-00101.png'),
-  (6,  'Kokomi',     'Strategic hydro leader with balanced sustain and control.', 'model00110.vrm', '/character-img-00110.png'),
-  (7,  'Nahida',     'Dendro analyst linking systems through layered reactions.', 'model00111.vrm', '/character-img-00111.png'),
-  (8,  'Navia',      'Geo commander specializing in momentum and tactical shots.', 'model01000.vrm', '/character-img-01000.png'),
-  (9,  'Neuvillette','Hydro judge channeling heavy pressure and field dominance.', 'model01001.vrm', '/character-img-01001.png'),
-  (10, 'Skirk',      'Abyssal swordswoman emphasizing discipline and aggressive tempo.', 'model01010.vrm', '/character-img-01010.png'),
-  (11, 'Yelan',      'Hydro operative leveraging mobility, timing, and precision tools.', 'model00000.vrm', '/character-img-00000.png')
+  (1,  'Nova Vale', 'Mysterious healer with otherworldly powers and enigmatic charm.', 'model00001.vrm', '/character-img/character-img-00001.png'),
+  (2,  'Iris Dawn',  'Quick-witted scout with exceptional tracking and survival skills.', 'model00010.vrm', '/character-img/character-img-00010.png'),
+  (3,  'Mira Sol',     'Spirited performer known for inspiration and group cohesion.', 'model00011.vrm', '/character-img/character-img-00011.png'),
+  (4,  'Celia Frost',      'Precise marksman with steady focus and calculated tactics.', 'model00100.vrm', '/character-img/character-img-00100.png'),
+  (5,  'Kora Vex',     'Swift duelist with lightning-fast reflexes and combat awareness.', 'model00101.vrm', '/character-img/character-img-00101.png'),
+  (6,  'Lumi Hart',     'Balanced leader combining wisdom, defense, and tactical support.', 'model00110.vrm', '/character-img/character-img-00110.png'),
+  (7,  'Nera Bloom',     'Analytical researcher unlocking hidden connections and systems.', 'model00111.vrm', '/character-img/character-img-00111.png'),
+  (8,  'Orin Slate',      'Bold commander excelling at momentum, strategy, and precision.', 'model01000.vrm', '/character-img/character-img-01000.png'),
+  (9,  'Sera Tide','Commanding presence with overwhelming force and decisive control.', 'model01001.vrm', '/character-img/character-img-01001.png'),
+  (10, 'Veda Rune',      'Disciplined warrior balancing power, speed, and iron will.', 'model01010.vrm', '/character-img/character-img-01010.png'),
+  (11, 'Yara Quinn',      'Agile operative combining cleverness, timing, and adaptability.', 'model00000.vrm', '/character-img/character-img-00000.png')
 on conflict (id) do update
 set
   name = excluded.name,
@@ -617,17 +617,17 @@ where preferred_model is null;
 -- (it uses ON CONFLICT DO UPDATE); here we only ensure missing rows are present.
 insert into public.characters (id, name, description, model_path, image_path)
 values
-  (1,  'Arlecchino', 'Crimson tactician with high-risk precision combat style.', 'model00001.vrm', '/character-img-00001.png'),
-  (2,  'Charlotte',  'Investigative reporter using sharp insight and support utility.', 'model00010.vrm', '/character-img-00010.png'),
-  (3,  'Furina',     'Hydro performer controlling rhythm, pressure, and adaptation.', 'model00011.vrm', '/character-img-00011.png'),
-  (4,  'Ganyu',      'Calm cryo archer focused on timing and sustained precision.', 'model00100.vrm', '/character-img-00100.png'),
-  (5,  'Keqing',     'Electro duelist built around burst movement and rapid execution.', 'model00101.vrm', '/character-img-00101.png'),
-  (6,  'Kokomi',     'Strategic hydro leader with balanced sustain and control.', 'model00110.vrm', '/character-img-00110.png'),
-  (7,  'Nahida',     'Dendro analyst linking systems through layered reactions.', 'model00111.vrm', '/character-img-00111.png'),
-  (8,  'Navia',      'Geo commander specializing in momentum and tactical shots.', 'model01000.vrm', '/character-img-01000.png'),
-  (9,  'Neuvillette','Hydro judge channeling heavy pressure and field dominance.', 'model01001.vrm', '/character-img-01001.png'),
-  (10, 'Skirk',      'Abyssal swordswoman emphasizing discipline and aggressive tempo.', 'model01010.vrm', '/character-img-01010.png'),
-  (11, 'Yelan',      'Hydro operative leveraging mobility, timing, and precision tools.', 'model00000.vrm', '/character-img-00000.png')
+  (1,  'Nova Vale', 'Mysterious healer with otherworldly powers and enigmatic charm.', 'model00001.vrm', '/character-img/character-img-00001.png'),
+  (2,  'Iris Dawn',  'Quick-witted scout with exceptional tracking and survival skills.', 'model00010.vrm', '/character-img/character-img-00010.png'),
+  (3,  'Mira Sol',     'Spirited performer known for inspiration and group cohesion.', 'model00011.vrm', '/character-img/character-img-00011.png'),
+  (4,  'Celia Frost',      'Precise marksman with steady focus and calculated tactics.', 'model00100.vrm', '/character-img/character-img-00100.png'),
+  (5,  'Kora Vex',     'Swift duelist with lightning-fast reflexes and combat awareness.', 'model00101.vrm', '/character-img/character-img-00101.png'),
+  (6,  'Lumi Hart',     'Balanced leader combining wisdom, defense, and tactical support.', 'model00110.vrm', '/character-img/character-img-00110.png'),
+  (7,  'Nera Bloom',     'Analytical researcher unlocking hidden connections and systems.', 'model00111.vrm', '/character-img/character-img-00111.png'),
+  (8,  'Orin Slate',      'Bold commander excelling at momentum, strategy, and precision.', 'model01000.vrm', '/character-img/character-img-01000.png'),
+  (9,  'Sera Tide','Commanding presence with overwhelming force and decisive control.', 'model01001.vrm', '/character-img/character-img-01001.png'),
+  (10, 'Veda Rune',      'Disciplined warrior balancing power, speed, and iron will.', 'model01010.vrm', '/character-img/character-img-01010.png'),
+  (11, 'Yara Quinn',      'Agile operative combining cleverness, timing, and adaptability.', 'model00000.vrm', '/character-img/character-img-00000.png')
 on conflict (id) do nothing;
 
 commit;
