@@ -1,9 +1,11 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import { OrbitControls } from "@react-three/drei";
+
+const PREVIEW_LOADING_MS = 8000;
 
 function VrmPreview({ avatarModelPath }) {
   const group = useRef();
@@ -20,10 +22,12 @@ function VrmPreview({ avatarModelPath }) {
       if (cancelled) return;
       const vrm = gltf.userData.vrm;
       if (!vrm) return;
+      const isDefaultModel =
+        typeof avatarModelPath === "string" && avatarModelPath.includes("model00000.vrm");
       // reset and adjust to fit preview box
       vrm.scene.rotation.set(0, 0, 0);
       vrm.scene.scale.setScalar(1.1);
-      vrm.scene.rotation.y = Math.PI; // face camera
+      vrm.scene.rotation.y = isDefaultModel ? 0 : Math.PI;
       vrm.scene.position.set(0, -1, 0);
       vrmRef.current = vrm;
       if (group.current) {
@@ -34,7 +38,6 @@ function VrmPreview({ avatarModelPath }) {
       // Apply a gentle resting/hand-down pose for non-default models so
       // the preview matches the in-game lowered-arms appearance.
       try {
-        const isDefaultModel = typeof avatarModelPath === "string" && avatarModelPath.includes("model00000.vrm");
         const armRestZ = isDefaultModel ? 1.1 : -1.3; // roll offset for upper arm
         const armLift = isDefaultModel ? 1 : 0.12; // reduces swing/lift for non-defaults
 
@@ -86,8 +89,28 @@ function VrmPreview({ avatarModelPath }) {
 }
 
 export default function ModelPreview({ avatarModelPath }) {
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  useEffect(() => {
+    setIsRevealed(false);
+
+    const timer = window.setTimeout(() => {
+      setIsRevealed(true);
+    }, PREVIEW_LOADING_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [avatarModelPath]);
+
   return (
-    <div className="model-preview" onContextMenu={(e) => e.preventDefault()}>
+    <div className={`model-preview ${isRevealed ? "model-preview--ready" : ""}`} onContextMenu={(e) => e.preventDefault()}>
+      {!isRevealed && (
+        <div className="model-preview__loading" aria-live="polite" aria-busy="true">
+          <div className="model-preview__loading-card">
+            <div className="model-preview__loading-spinner" />
+            <p>Loading character preview...</p>
+          </div>
+        </div>
+      )}
       <Canvas camera={{ position: [0, 1.2, 2.5], fov: 40 }}>
         <ambientLight intensity={0.8} />
         <directionalLight position={[0, 5, 5]} intensity={0.8} />
