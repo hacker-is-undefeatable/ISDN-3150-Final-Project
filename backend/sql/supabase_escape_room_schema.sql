@@ -279,9 +279,12 @@ begin
   set email = excluded.email;
 
   insert into public.user_characters (user_id, character_id, unlocked, unlocked_at)
-  select new.id, c.id, false, null
+  select new.id, c.id, (c.id = 11), case when c.id = 11 then timezone('utc', now()) else null end
   from public.characters c
-  on conflict (user_id, character_id) do nothing;
+  on conflict (user_id, character_id) do update
+  set
+    unlocked = excluded.unlocked,
+    unlocked_at = coalesce(public.user_characters.unlocked_at, excluded.unlocked_at);
 
   insert into public.user_cards (user_id, card_id, unlocked, unlocked_at)
   select new.id, c.id, false, null
@@ -413,6 +416,12 @@ select p.id, c.id, false, null
 from public.profiles p
 cross join public.characters c
 on conflict (user_id, character_id) do nothing;
+
+update public.user_characters
+set
+  unlocked = true,
+  unlocked_at = coalesce(unlocked_at, timezone('utc', now()))
+where character_id = 11;
 
 insert into public.user_cards (user_id, card_id, unlocked, unlocked_at)
 select p.id, c.id, false, null
