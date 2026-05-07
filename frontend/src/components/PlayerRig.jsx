@@ -40,8 +40,6 @@ function shortestAngleDiff(target, current) {
   return ((target - current + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
 }
 
-/* ===================== VRM AVATAR ===================== */
-
 function setBlink(vrm, value) {
   if (!vrm) return;
   const manager = vrm.expressionManager;
@@ -247,7 +245,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
   const positionRef = useRef(new THREE.Vector3(0, 0, 2));
   const yawRef = useRef(0);
 
-  const viewYawRef = useRef(0);
+  const viewYawRef = useRef(Math.PI);
   const pitchRef = useRef(-0.2);
 
   const moveAmountRef = useRef(0);
