@@ -8,16 +8,27 @@ export default function Play() {
   const navigate = useNavigate();
 
   const scene = location.state?.scene || "dungeon";
-  const characterId = location.state?.character || null;
+  const selectedCharacter = location.state?.character || null;
 
-  // simple mapping: char_00 -> pick model at index 0, clamp to available models
-  let modelIndex = 0;
-  if (characterId && typeof characterId === "string") {
-    const parsed = parseInt(characterId.split("_")[1], 10);
-    if (!Number.isNaN(parsed)) modelIndex = Math.max(0, Math.min(parsed, ALLOWED_CHARACTER_MODELS.length - 1));
-  }
+  const modelCode =
+    typeof selectedCharacter === "string" &&
+    ALLOWED_CHARACTER_MODELS.some((entry) => entry.code === selectedCharacter)
+      ? selectedCharacter
+      : (() => {
+          const legacyIndex =
+            typeof selectedCharacter === "string"
+              ? Number.parseInt(selectedCharacter.split("_")[1], 10)
+              : Number.NaN;
 
-  const modelCode = ALLOWED_CHARACTER_MODELS[modelIndex].code;
+          if (!Number.isNaN(legacyIndex)) {
+            return ALLOWED_CHARACTER_MODELS[
+              Math.max(0, Math.min(legacyIndex, ALLOWED_CHARACTER_MODELS.length - 1))
+            ].code;
+          }
+
+          return ALLOWED_CHARACTER_MODELS[0].code;
+        })();
+
   const avatarModelPath = getCharacterModelPath(modelCode);
 
   return (
