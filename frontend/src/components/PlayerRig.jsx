@@ -621,7 +621,13 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
 
         if (signature !== positionReport.lastSignature) {
           positionReport.lastSignature = signature;
-          onPositionChange({ x, y, z, yaw: Number(yawRef.current.toFixed(4)) });
+          onPositionChange({
+            x,
+            y,
+            z,
+            yaw: Number(yawRef.current.toFixed(4)),
+            viewYaw: Number(viewYawRef.current.toFixed(4))
+          });
         }
       }
     }

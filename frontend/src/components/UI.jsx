@@ -1,24 +1,10 @@
 export default function UI({
-  escaped,
   cameraMode,
-  selectedObject,
-  currentPuzzle,
-  answer,
-  hint,
-  feedback,
   playerCoords,
   mapBounds,
-  explorationSpots,
-  completedSpotIds,
-  nearSpotId,
-  completedSpotsCount,
-  totalSpots,
-  loadingPuzzle,
-  checkingAnswer,
-  fetchingHint,
-  onAnswerChange,
-  onSubmitAnswer,
-  onHint,
+  npcPosition,
+  objectiveTarget,
+  extractionTarget,
   onToggleCameraMode,
 }) {
   const formatCoord = (value) =>
@@ -64,20 +50,56 @@ export default function UI({
   };
 
   const markerStyle = getMarkerStyle();
-  const yawRad = Number.isFinite(playerCoords?.yaw) ? playerCoords.yaw : 0;
+  const npcStyle = npcPosition
+    ? {
+        ...getMapPositionStyle(npcPosition.x, npcPosition.z),
+        position: "absolute",
+        transform: "translate(-50%, -50%)",
+        width: 0,
+        height: 0,
+        borderLeft: "7px solid transparent",
+        borderRight: "7px solid transparent",
+        borderBottom: "12px solid #ffd166",
+        filter: "drop-shadow(0 0 6px rgba(255, 209, 102, 0.9))"
+      }
+    : null;
+  const objectiveStyles = (objectiveTarget || []).map((target) => ({
+    id: target.id,
+    style: {
+      ...getMapPositionStyle(target.position.x, target.position.z),
+      position: "absolute",
+      width: "10px",
+      height: "10px",
+      background: "#9bffcf",
+      border: "2px solid rgba(7, 16, 24, 0.7)",
+      borderRadius: "3px",
+      transform: "translate(-50%, -50%) rotate(45deg)",
+      boxShadow: "0 0 8px rgba(155, 255, 207, 0.8)"
+    }
+  }));
+  const extractionStyle = extractionTarget?.position
+    ? {
+        ...getMapPositionStyle(extractionTarget.position.x, extractionTarget.position.z),
+        position: "absolute",
+        width: "12px",
+        height: "12px",
+        borderRadius: "50%",
+        border: "2px solid rgba(255, 255, 255, 0.7)",
+        background: "#ff8e8e",
+        transform: "translate(-50%, -50%)",
+        boxShadow: "0 0 10px rgba(255, 142, 142, 0.8)"
+      }
+    : null;
+  const yawRad = Number.isFinite(playerCoords?.viewYaw)
+    ? playerCoords.viewYaw
+    : Number.isFinite(playerCoords?.yaw)
+    ? playerCoords.yaw
+    : 0;
   const fovRotationDeg = 180 - (yawRad * 180) / Math.PI;
-  const completedSpotSet = new Set(completedSpotIds || []);
-  const selectedLabel = selectedObject
-    ? selectedObject.replace("_", " ").toUpperCase()
-    : null;
-  const nearLabel = nearSpotId
-    ? nearSpotId.replace("_", " ").toUpperCase()
-    : null;
-
   return (
     <>
       <div className="ui-panel">
-        <h1>AI 3D Escape Room</h1>
+        <h1>Island Expedition</h1>
         <div className="mode-row">
           <span>
             <strong>Mode:</strong> {cameraMode === "first-person" ? "First Person" : "Third Person"}
@@ -86,89 +108,20 @@ export default function UI({
             Switch Mode
           </button>
         </div>
-        <p className="controls-tip">Move with WASD or arrow keys. Press E near a glowing spot.</p>
-        <p className="progress-text">
-          <strong>Explored:</strong> {completedSpotsCount}/{totalSpots}
-        </p>
-
-        {nearLabel ? (
-          <p className="interaction-tip">
-            <strong>Nearby:</strong> Press E to explore {nearLabel}.
-          </p>
-        ) : (
-          <p className="interaction-tip">Move close to a glowing exploration spot to interact.</p>
-        )}
-
-        {escaped && <div className="win-banner">You Escaped!</div>}
-
-        {!selectedObject && <p>No active spot yet. Use E when you are near a spot.</p>}
-
-        {selectedObject && (
-          <div>
-            <p>
-              <strong>Selected:</strong> {selectedLabel}
-            </p>
-
-            {loadingPuzzle && <p>Loading puzzle...</p>}
-
-            {currentPuzzle && (
-              <div className="puzzle-block">
-                <p>
-                  <strong>Puzzle:</strong> {currentPuzzle}
-                </p>
-                <input
-                  type="text"
-                  value={answer}
-                  onChange={(event) => onAnswerChange(event.target.value)}
-                  placeholder="Enter answer"
-                />
-                <div className="button-row">
-                  <button onClick={onSubmitAnswer} disabled={checkingAnswer}>
-                    {checkingAnswer ? "Checking..." : "Submit Answer"}
-                  </button>
-                  <button onClick={onHint} disabled={fetchingHint}>
-                    {fetchingHint ? "Getting Hint..." : "Hint"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {hint && (
-              <p className="hint-text">
-                <strong>Hint:</strong> {hint}
-              </p>
-            )}
-          </div>
-        )}
-
-        {feedback && <p className="feedback">{feedback}</p>}
+        <p className="controls-tip">Move with WASD or arrow keys. Explore freely.</p>
       </div>
 
       <div className="minimap-hud" aria-label="Minimap">
         <div className="minimap-title">Map</div>
         <div className="minimap-canvas">
           <div className="minimap-grid" />
-          <div className="minimap-spots-layer">
-            {(explorationSpots || []).map((spot) => {
-              const [spotX, , spotZ] = spot.position || [];
-              const spotStyle = getMapPositionStyle(spotX, spotZ);
-              const isNear = nearSpotId === spot.id;
-              const isCompleted = completedSpotSet.has(spot.id);
-              const stateClass = isCompleted
-                ? "minimap-spot-completed"
-                : isNear
-                ? "minimap-spot-near"
-                : "minimap-spot-default";
-
-              return (
-                <div
-                  className={`minimap-spot ${stateClass}`}
-                  style={spotStyle}
-                  title={spot.label || spot.id}
-                />
-              );
-            })}
-          </div>
+          {npcStyle && <div className="minimap-npc" style={npcStyle} />}
+          {objectiveStyles.map((entry) => (
+            <div key={entry.id} className="minimap-objective" style={entry.style} />
+          ))}
+          {extractionStyle && (
+            <div className="minimap-extraction" style={extractionStyle} />
+          )}
           <div
             className="minimap-fov"
             style={{

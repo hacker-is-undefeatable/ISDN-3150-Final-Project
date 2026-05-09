@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
-const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment.glb";
+const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment2.glb";
 const TERRAIN_SCALE = 1;
 const GROUND_NAME_PATTERN = /^(Island_basemesh|island_cave|bridge|port|ruins)$/i;
 const NON_BLOCKING_NAME_PATTERN = /^(skybox|Ocean_plane)$/i;
