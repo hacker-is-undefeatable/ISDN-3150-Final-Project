@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NpcOutput",
+  "type": "object",
+  "required": ["npcId", "dialogue", "suspicion", "emotion", "tone"],
+  "properties": {
+    "npcId": { "type": "string" },
+    "dialogue": { "type": "string" },
+    "suspicion": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "emotion": { "type": "string" },
+    "tone": { "type": "string" }
+  },
+  "additionalProperties": false
+}

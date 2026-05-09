@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EventOutput",
+  "type": "object",
+  "required": ["spawnEvent", "location", "effects"],
+  "properties": {
+    "spawnEvent": { "type": "string" },
+    "location": { "type": "string" },
+    "effects": {
+      "type": "object",
+      "required": ["visual", "audio", "particles"],
+      "properties": {
+        "visual": { "type": "array", "items": { "type": "string" } },
+        "audio": { "type": "array", "items": { "type": "string" } },
+        "particles": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "dialogue": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

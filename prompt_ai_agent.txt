@@ -1,0 +1,240 @@
+Build a scalable AI-driven 3D exploration game architecture.
+
+Tech stack:
+
+React
+React Three Fiber
+Three.js
+Zustand for state management
+Node.js backend
+OpenAI API integration
+JSON-based world state
+Modular event system
+
+GAME CONCEPT:
+Players repeatedly explore a mysterious island during expedition runs.
+
+Each run:
+
+AI generates events
+NPCs (the one in public/model/genshin could be NPCs) behave dynamically
+weather changes
+anomalies occur
+players unlock one collectible card
+
+The game is NOT a linear story.
+The island generates procedural narrative runs.
+
+Create a layered architecture:
+
+GAME ENGINE LAYER
+Handles:
+player movement
+collisions
+inventory
+object spawning
+animations
+particles
+weather rendering
+sound triggers
+AI DIRECTOR LAYER
+Handles:
+run progression
+event selection
+environmental changes
+dynamic encounters
+reward logic
+EVENT SYSTEM
+Create reusable event prefabs.
+
+Examples:
+
+ghost ship arrival
+fog storm
+shadow watcher
+ritual activation
+abandoned camp discovery
+corrupted jungle
+
+Events must be triggerable via JSON.
+
+Create a centralized JSON world state.
+
+Example structure:
+
+{
+"runSeed": 12345,
+"timeOfDay": "night",
+"weather": "heavy_fog",
+"dangerLevel": 6,
+"corruption": 45,
+"activeEvents": [],
+"player": {
+"location": "bridge",
+"health": 90,
+"inventory": []
+},
+"factions": {
+"villagers": {
+"trust": 40
+},
+"spirits": {
+"aggression": 70
+}
+}
+}
+
+Implement AI agent modules:
+
+Director Agent
+Input:
+world state
+player actions
+recent events
+
+Output:
+
+next event
+weather changes
+pacing adjustments
+NPC Agent
+Generates:
+dialogue
+suspicion
+emotional tone
+Event Generator Agent
+Generates:
+dynamic events
+anomaly triggers
+environmental effects
+Reward Agent
+Determines:
+collectible card rewards
+rarity
+unlock conditions
+
+IMPORTANT:
+ALL AI outputs must be strict JSON.
+Never return raw prose for engine execution.
+
+Create reusable event prefabs.
+
+Each prefab should contain:
+
+visual effects
+audio triggers
+spawn points
+particle systems
+optional dialogue
+
+Examples:
+EventPrefab_GhostShip
+EventPrefab_FogStorm
+EventPrefab_ShadowWatcher
+EventPrefab_RitualCircle
+
+AI only triggers prefab IDs.
+
+Example:
+{
+"spawnEvent": "ShadowWatcher",
+"location": "bridge"
+}
+
+Create weather presets:
+
+clear
+heavy_fog
+storm
+blood_moon
+corruption
+
+Each preset controls:
+
+fog density
+lighting
+skybox
+particles
+ambient sound
+
+Weather must smoothly transition.
+
+Implement collectible cards.
+
+80 total cards.
+
+Card categories:
+
+character cards
+relic cards
+event cards
+location cards
+myth cards
+
+Cards are unlocked through:
+
+rare encounters
+run completion
+hidden conditions
+corruption thresholds
+faction outcomes
+
+Island locations:
+
+port
+bridge
+jungle
+ruins
+cave
+shoreline
+forest paths
+
+The map must support:
+
+dynamic event spawning
+weather changes
+environmental storytelling
+
+Save:
+
+unlocked cards
+discovered lore
+player statistics
+run history
+hidden achievements
+
+Focus heavily on:
+
+fog
+lighting
+environmental audio
+distant silhouettes
+subtle environmental changes
+
+Avoid:
+
+MMO systems
+complex combat
+procedural geometry generation
+
+Focus on:
+
+replayability
+atmosphere
+AI-driven narrative variation
+
+Generate:
+
+folder structure
+React components
+Zustand stores
+AI service architecture
+JSON schemas
+event manager system
+weather manager
+prefab spawning system
+example API routes
+sample prompts for AI agents
+modular scalable architecture
+
+The codebase should be production-scalable and easy to extend.

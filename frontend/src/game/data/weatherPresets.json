@@ -1,0 +1,47 @@
+[
+  {
+    "id": "clear",
+    "fogDensity": 0.01,
+    "skyColor": "#88a8c8",
+    "lightColor": "#ffffff",
+    "ambientColor": "#b9c7d4",
+    "particles": [],
+    "ambientSound": "wind_soft"
+  },
+  {
+    "id": "heavy_fog",
+    "fogDensity": 0.06,
+    "skyColor": "#65707a",
+    "lightColor": "#cbd5e1",
+    "ambientColor": "#8693a1",
+    "particles": ["fog_roll"],
+    "ambientSound": "fog_drone"
+  },
+  {
+    "id": "storm",
+    "fogDensity": 0.04,
+    "skyColor": "#2f3946",
+    "lightColor": "#d4d4d4",
+    "ambientColor": "#6c7a89",
+    "particles": ["rain", "spray"],
+    "ambientSound": "storm_rumble"
+  },
+  {
+    "id": "blood_moon",
+    "fogDensity": 0.03,
+    "skyColor": "#6b1d1d",
+    "lightColor": "#ffb4a2",
+    "ambientColor": "#7b3f3f",
+    "particles": ["ember_drift"],
+    "ambientSound": "blood_moon_chant"
+  },
+  {
+    "id": "corruption",
+    "fogDensity": 0.05,
+    "skyColor": "#1b1b2b",
+    "lightColor": "#b07cff",
+    "ambientColor": "#3b2d4a",
+    "particles": ["spore_cloud"],
+    "ambientSound": "corruption_pulse"
+  }
+]

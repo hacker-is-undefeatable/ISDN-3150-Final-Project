@@ -1,0 +1,212 @@
+You are a senior backend engineer and database architect.
+
+I am building a web-based AI-powered 3D escape room game using:
+- Supabase (PostgreSQL + Auth)
+- React frontend
+
+----------------------------------
+
+🎯 TASK
+
+Design a production-ready PostgreSQL schema for my game.
+
+IMPORTANT:
+- Supabase Auth handles email + encrypted password
+- DO NOT store passwords manually
+- All user data must link to auth.users.id (UUID)
+
+----------------------------------
+
+🎮 GAME DESIGN
+
+- There are 11 characters total
+- Each character has 8 collectible cards
+- Total cards = 88
+- Users unlock cards by playing
+- Completing all 8 cards of a character unlocks that character
+
+----------------------------------
+
+📊 REQUIREMENTS
+
+1. USER PROFILE TABLE
+
+profiles
+- id (UUID, PK, references auth.users.id)
+- email (text)
+- created_at (timestamp, default now())
+
+----------------------------------
+
+2. CHARACTERS TABLE (STATIC DATA)
+
+characters
+- id (integer, PK, 1–11)
+- name (text)
+- description (text)
+
+----------------------------------
+
+3. CARDS TABLE (STATIC DATA)
+
+cards
+- id (integer, PK)
+- character_id (FK → characters.id)
+- card_index (0–7)
+- name (text)
+
+Constraints:
+- UNIQUE(character_id, card_index)
+
+----------------------------------
+
+4. USER CARDS TABLE (CORE SYSTEM)
+
+user_cards
+- id (UUID, PK)
+- user_id (UUID, FK → profiles.id)
+- card_id (FK → cards.id)
+- unlocked (boolean, default false)
+- unlocked_at (timestamp)
+
+Constraints:
+- UNIQUE(user_id, card_id)
+
+----------------------------------
+
+5. USER CHARACTERS TABLE
+
+user_characters
+- id (UUID, PK)
+- user_id (UUID, FK → profiles.id)
+- character_id (FK → characters.id)
+- unlocked (boolean, default false)
+- unlocked_at (timestamp)
+
+Constraints:
+- UNIQUE(user_id, character_id)
+
+----------------------------------
+
+6. PLAY HISTORY TABLE
+
+play_history
+- id (UUID, PK)
+- user_id (UUID, FK → profiles.id)
+- session_date (timestamp, default now())
+- score (integer)
+- puzzles_solved (integer)
+- duration_seconds (integer)
+
+----------------------------------
+
+7. AUTO UNLOCK LOGIC (VERY IMPORTANT)
+
+Implement a PostgreSQL function + trigger:
+
+When a user unlocks a card:
+- Check if the user now owns ALL 8 cards for that character
+- If yes:
+  → Automatically set user_characters.unlocked = true
+
+----------------------------------
+
+8. AUTO CREATE PROFILE
+
+Create a trigger:
+
+When a new user is created in auth.users:
+- Insert into profiles
+- Also pre-create:
+  - 88 rows in user_cards (all locked)
+  - 11 rows in user_characters (all locked)
+
+----------------------------------
+
+9. INITIAL STATIC DATA
+
+Insert:
+- 11 characters
+- 8 cards per character (total 88 cards)
+
+----------------------------------
+
+10. PERFORMANCE
+
+- Add indexes on:
+  - user_id
+  - card_id
+  - character_id
+- Ensure efficient joins
+
+----------------------------------
+
+11. API / QUERY EXAMPLES
+
+Provide SQL queries for:
+
+- Get all characters with unlock status
+- Get all cards for a specific character (with unlock status)
+- Unlock a card
+- Check if character should unlock
+- Insert play history
+- Get user progress summary (e.g., total cards unlocked)
+
+----------------------------------
+
+12. OPTIONAL (MVP BIT STRING VERSION)
+
+Also show how to represent:
+
+characters_owned → 11 bits
+cards_owned → 88 bits
+
+BUT explain clearly:
+- Why this is NOT recommended for long-term use
+- When it is acceptable (MVP only)
+
+----------------------------------
+
+13. UI IMPLICATIONS (IMPORTANT)
+
+Based on this schema, design frontend structure:
+
+After login:
+
+1. Character Selection Screen
+   - Show 11 characters
+   - Locked/unlocked state
+
+2. Card Collection View
+   - Each character → 8 cards grid
+   - Locked vs unlocked visuals
+
+3. Progress Indicators
+   - Example: "5 / 8 cards collected"
+
+4. Stats Panel
+   - Total cards unlocked
+   - Total play sessions
+   - Total score
+
+Also provide example JSON responses for frontend.
+
+----------------------------------
+
+14. OUTPUT FORMAT
+
+- FULL SQL schema
+- Trigger functions
+- Seed data (INSERT statements)
+- Explanation
+- Sample queries
+- UI suggestions
+
+----------------------------------
+
+DO NOT:
+- Skip any part
+- Use pseudo-code
+- Simplify schema
+
+Everything must be production-ready.

@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorldState",
+  "type": "object",
+  "required": [
+    "runSeed",
+    "timeOfDay",
+    "weather",
+    "dangerLevel",
+    "corruption",
+    "activeEvents",
+    "player",
+    "factions"
+  ],
+  "properties": {
+    "runSeed": { "type": "integer" },
+    "timeOfDay": {
+      "type": "string",
+      "enum": ["dawn", "day", "dusk", "night"]
+    },
+    "weather": { "type": "string" },
+    "dangerLevel": { "type": "integer", "minimum": 0, "maximum": 10 },
+    "corruption": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "activeEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "location", "startedAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "location": { "type": "string" },
+          "startedAt": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "player": {
+      "type": "object",
+      "required": ["location", "health", "inventory"],
+      "properties": {
+        "location": { "type": "string" },
+        "health": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "inventory": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "factions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["trust", "aggression"],
+        "properties": {
+          "trust": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "aggression": { "type": "integer", "minimum": 0, "maximum": 100 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

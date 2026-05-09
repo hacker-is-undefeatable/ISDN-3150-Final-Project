@@ -1,0 +1,50 @@
+[
+  {
+    "id": "GhostShip",
+    "visualEffects": ["mist_wake", "deck_lanterns"],
+    "audioTriggers": ["ship_creak", "distant_bell"],
+    "spawnPoints": ["shoreline", "port"],
+    "particles": ["sea_spray"],
+    "dialogue": ["A silhouette slides across the black water."]
+  },
+  {
+    "id": "FogStorm",
+    "visualEffects": ["dense_fog", "light_flicker"],
+    "audioTriggers": ["fog_howl", "low_hum"],
+    "spawnPoints": ["forest_paths", "bridge"],
+    "particles": ["fog_roll"],
+    "dialogue": ["The air thickens, swallowing sound."]
+  },
+  {
+    "id": "ShadowWatcher",
+    "visualEffects": ["silhouette_glimpse", "eye_glow"],
+    "audioTriggers": ["whisper_loop"],
+    "spawnPoints": ["ruins", "jungle"],
+    "particles": ["shadow_motes"],
+    "dialogue": ["Something watches from between the trees."]
+  },
+  {
+    "id": "RitualCircle",
+    "visualEffects": ["sigil_glow", "ember_ring"],
+    "audioTriggers": ["ritual_chant"],
+    "spawnPoints": ["ruins", "cave"],
+    "particles": ["ember_drift"],
+    "dialogue": ["The circle hums with a quiet pulse."]
+  },
+  {
+    "id": "AbandonedCamp",
+    "visualEffects": ["torn_tents", "flicker_lantern"],
+    "audioTriggers": ["cloth_snap", "ash_crackle"],
+    "spawnPoints": ["forest_paths", "jungle"],
+    "particles": ["ash_float"],
+    "dialogue": ["A camp lies cold, but the coals still whisper."]
+  },
+  {
+    "id": "CorruptedJungle",
+    "visualEffects": ["twisted_vines", "purple_pollen"],
+    "audioTriggers": ["insect_swarm"],
+    "spawnPoints": ["jungle"],
+    "particles": ["spore_cloud"],
+    "dialogue": ["The jungle bends toward the corruption."]
+  }
+]

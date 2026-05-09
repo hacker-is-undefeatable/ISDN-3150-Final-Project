@@ -1,0 +1,23 @@
+{
+  "runSeed": 12345,
+  "timeOfDay": "night",
+  "weather": "heavy_fog",
+  "dangerLevel": 6,
+  "corruption": 45,
+  "activeEvents": [],
+  "player": {
+    "location": "bridge",
+    "health": 90,
+    "inventory": []
+  },
+  "factions": {
+    "villagers": {
+      "trust": 40,
+      "aggression": 10
+    },
+    "spirits": {
+      "trust": 10,
+      "aggression": 70
+    }
+  }
+}
