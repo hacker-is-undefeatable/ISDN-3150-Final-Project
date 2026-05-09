@@ -6,6 +6,7 @@ export const initialWorldState = {
   corruption: 0,
   activeEvents: [],
   objectiveTargets: [],
+  objectivesPreloaded: false,
   extractionTarget: null,
   player: {
     location: "port",

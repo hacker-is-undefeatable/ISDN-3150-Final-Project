@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import UI from "./UI";
 import PlayerRig from "./PlayerRig";
@@ -17,7 +17,9 @@ import RunOutcomeManager from "../game/components/RunOutcomeManager";
 
 export default function GameScene({ avatarModelPath }) {
   const terrainCollidersRef = useRef({ ground: [], walls: [] });
+  const canvasRef = useRef(null);
   const [npcPosition, setNpcPosition] = useState(() => ({ x: 0.9, y: 24.16, z: -3.17 }));
+  const [isContextLost, setIsContextLost] = useState(false);
 
   const [cameraMode, setCameraMode] = useState("third-person");
   const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0, z: 2 });
@@ -34,11 +36,60 @@ export default function GameScene({ avatarModelPath }) {
     setCameraMode((prev) => (prev === "first-person" ? "third-person" : "first-person"));
   };
 
+  const handleContextLost = useCallback((event) => {
+    event.preventDefault();
+    setIsContextLost(true);
+  }, []);
+
+  const handleContextRestored = useCallback(() => {
+    setIsContextLost(false);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+
+    canvas.addEventListener("webglcontextlost", handleContextLost, false);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored, false);
+
+    return () => {
+      canvas.removeEventListener("webglcontextlost", handleContextLost, false);
+      canvas.removeEventListener("webglcontextrestored", handleContextRestored, false);
+    };
+  }, [handleContextLost, handleContextRestored]);
+
+  const nearestObjective = useMemo(() => {
+    if (!objectiveTargets.length || !playerCoords) return null;
+    let best = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    objectiveTargets.forEach((target) => {
+      if (!target?.position) return;
+      const dx = target.position.x - playerCoords.x;
+      const dy = target.position.y - playerCoords.y;
+      const dz = target.position.z - playerCoords.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = target;
+      }
+    });
+    return best;
+  }, [objectiveTargets, playerCoords]);
 
 
   return (
     <div className="game-shell">
-      <Canvas camera={{ position: [0, 3, 8], fov: 60 }}>
+      <Canvas
+        camera={{ position: [0, 3, 8], fov: 60 }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
+        onCreated={({ gl }) => {
+          canvasRef.current = gl.domElement;
+          gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        }}
+      >
         <color attach="background" args={["#101418"]} />
         <ambientLight name="weather-ambient" intensity={0.35} />
         <hemisphereLight
@@ -60,9 +111,21 @@ export default function GameScene({ avatarModelPath }) {
           </group>
         )}
         {objectiveTargets.map((target, index) => (
-          <group key={target.id || `objective_npc_${index}`} position={[target.position.x, target.position.y, target.position.z]}>
-            <pointLight intensity={0.9} distance={6} color="#9bffcf" />
-            <NPCModel modelPath="/model/genshin/model_kokomi.vrm" />
+          <group
+            key={target.id || `objective_npc_${index}`}
+            position={[target.position.x, target.position.y, target.position.z]}
+          >
+            {nearestObjective?.id === target.id ? (
+              <>
+                <pointLight intensity={0.9} distance={6} color="#9bffcf" />
+                <NPCModel modelPath="/model/genshin/model_kokomi.vrm" />
+              </>
+            ) : (
+              <mesh>
+                <sphereGeometry args={[0.35, 14, 14]} />
+                <meshStandardMaterial color="#9bffcf" emissive="#2b7a5b" emissiveIntensity={0.6} />
+              </mesh>
+            )}
           </group>
         ))}
         <PlayerRig
@@ -72,6 +135,12 @@ export default function GameScene({ avatarModelPath }) {
           avatarModelPath={avatarModelPath}
         />
       </Canvas>
+
+      {isContextLost && (
+        <div className="webgl-warning">
+          WebGL context lost. Try closing other tabs or refreshing the page.
+        </div>
+      )}
 
       <UI
         cameraMode={cameraMode}

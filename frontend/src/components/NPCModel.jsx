@@ -33,6 +33,31 @@ function disableVrmOutlines(vrm) {
 export default function NPCModel({ modelPath }) {
   const group = useRef();
   const [vrmInstance, setVrmInstance] = useState(null);
+  const vrmRef = useRef(null);
+
+  const disposeMaterial = (material) => {
+    if (!material) return;
+    Object.keys(material).forEach((key) => {
+      const value = material[key];
+      if (value && value.isTexture) {
+        value.dispose();
+      }
+    });
+    material.dispose?.();
+  };
+
+  const disposeVrm = (vrm) => {
+    if (!vrm?.scene) return;
+    vrm.scene.traverse((node) => {
+      if (!node.isMesh) return;
+      node.geometry?.dispose?.();
+      if (Array.isArray(node.material)) {
+        node.material.forEach(disposeMaterial);
+      } else {
+        disposeMaterial(node.material);
+      }
+    });
+  };
 
   useEffect(() => {
     if (!modelPath) return;
@@ -58,11 +83,20 @@ export default function NPCModel({ modelPath }) {
         group.current.add(vrm.scene);
       }
 
+      vrmRef.current = vrm;
       setVrmInstance(vrm);
     });
 
     return () => {
       cancelled = true;
+      if (group.current) {
+        group.current.clear();
+      }
+      if (vrmRef.current) {
+        disposeVrm(vrmRef.current);
+        vrmRef.current = null;
+      }
+      setVrmInstance(null);
     };
   }, [modelPath]);
 

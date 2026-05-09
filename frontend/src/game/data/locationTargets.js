@@ -77,3 +77,7 @@ export function pickLocationTarget(locationKey) {
   const choice = pool[Math.floor(Math.random() * pool.length)];
   return { location: key, position: choice };
 }
+
+export function getLocationKeys() {
+  return Object.keys(LOCATION_TARGETS);
+}

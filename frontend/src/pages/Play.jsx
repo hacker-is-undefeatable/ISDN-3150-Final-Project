@@ -1,11 +1,18 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import GameScene from "../components/GameScene";
 import { getCharacterModelPath, ALLOWED_CHARACTER_MODELS } from "../lib/avatarModels";
+import { useWorldStore } from "../game/state/worldStore";
+import { getLocationKeys, pickLocationTarget } from "../game/data/locationTargets";
 
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [objectivesReady, setObjectivesReady] = useState(false);
+  const hasPreloadedRef = useRef(false);
+  const objectiveTargets = useWorldStore((state) => state.world.objectiveTargets || []);
+  const setObjectiveTargets = useWorldStore((state) => state.setObjectiveTargets);
+  const patchWorld = useWorldStore((state) => state.patchWorld);
 
   const scene = location.state?.scene || "dungeon";
   const selectedCharacter = location.state?.character || null;
@@ -30,6 +37,50 @@ export default function Play() {
         })();
 
   const avatarModelPath = getCharacterModelPath(modelCode);
+  const preloadCount = 5;
+
+  useEffect(() => {
+    if (hasPreloadedRef.current) {
+      setObjectivesReady(true);
+      return;
+    }
+
+    if (objectiveTargets.length >= preloadCount) {
+      patchWorld({ objectivesPreloaded: true });
+      hasPreloadedRef.current = true;
+      setObjectivesReady(true);
+      return;
+    }
+
+    const locationKeys = getLocationKeys();
+    const seen = new Set();
+    const nextTargets = [];
+    let safety = 0;
+
+    while (nextTargets.length < preloadCount && safety < 200) {
+      const key = locationKeys[nextTargets.length % locationKeys.length];
+      const target = pickLocationTarget(key);
+      if (target?.position) {
+        const sig = `${target.location}:${target.position.x},${target.position.y},${target.position.z}`;
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          nextTargets.push({
+            id: `obj_${Date.now()}_${nextTargets.length}`,
+            ...target
+          });
+        }
+      }
+      safety += 1;
+    }
+
+    if (nextTargets.length) {
+      setObjectiveTargets(nextTargets);
+    }
+
+    patchWorld({ objectivesPreloaded: true });
+    hasPreloadedRef.current = true;
+    setObjectivesReady(true);
+  }, [objectiveTargets.length, patchWorld, setObjectiveTargets]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -38,7 +89,11 @@ export default function Play() {
           Back to Lobby
         </button>
       </div>
-      <GameScene avatarModelPath={avatarModelPath} />
+      {objectivesReady ? (
+        <GameScene avatarModelPath={avatarModelPath} />
+      ) : (
+        <div className="p-4">Loading objectives...</div>
+      )}
     </div>
   );
 }

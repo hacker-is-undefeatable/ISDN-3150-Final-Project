@@ -47,7 +47,7 @@ export default function RunOrchestrator() {
         });
         console.info("[Director] Event queued", director.nextEvent);
 
-        if (objectiveTargets.length < 5) {
+        if (!worldState.objectivesPreloaded && objectiveTargets.length < 5) {
           const target = pickLocationTarget(director.nextEvent.location);
           if (target) {
             const exists = objectiveTargets.some(
