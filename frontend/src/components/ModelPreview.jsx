@@ -7,6 +7,32 @@ import { OrbitControls } from "@react-three/drei";
 
 const PREVIEW_LOADING_MS = 8000;
 
+function disableVrmOutlines(vrm) {
+  if (!vrm?.scene) return;
+
+  vrm.scene.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    const baseMaterial = materials.find((material) => material && !material.isOutline);
+
+    materials.forEach((material) => {
+      if (!material?.isMToonMaterial) return;
+      material.outlineWidthMode = "none";
+      material.outlineWidthFactor = 0;
+      material.isOutline = false;
+      material.needsUpdate = true;
+    });
+
+    if (Array.isArray(node.material) && baseMaterial) {
+      node.material = baseMaterial;
+    }
+  });
+}
+
 function VrmPreview({ avatarModelPath }) {
   const group = useRef();
   const vrmRef = useRef();
@@ -29,6 +55,8 @@ function VrmPreview({ avatarModelPath }) {
       vrm.scene.scale.setScalar(1.1);
       vrm.scene.rotation.y = isDefaultModel ? 0 : Math.PI;
       vrm.scene.position.set(0, -1, 0);
+
+      disableVrmOutlines(vrm);
       vrmRef.current = vrm;
       if (group.current) {
         group.current.clear();

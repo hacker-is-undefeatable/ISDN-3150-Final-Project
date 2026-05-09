@@ -5,6 +5,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
 const SPEED = 3.2;
+const RUN_MULTIPLIER = 1.7;
 const AVATAR_YAW_OFFSET = 0;
 const NON_DEFAULT_AVATAR_YAW_OFFSET = Math.PI;
 const LOOK_SENSITIVITY = 0.005;
@@ -31,6 +32,32 @@ const JUMP_VELOCITY = 6.2;
 const MAX_FALL_SPEED = 20;
 const JUMP_BUFFER_TIME = 0.12;
 const POSITION_REPORT_INTERVAL = 0.1;
+
+function disableVrmOutlines(vrm) {
+  if (!vrm?.scene) return;
+
+  vrm.scene.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    const baseMaterial = materials.find((material) => material && !material.isOutline);
+
+    materials.forEach((material) => {
+      if (!material?.isMToonMaterial) return;
+      material.outlineWidthMode = "none";
+      material.outlineWidthFactor = 0;
+      material.isOutline = false;
+      material.needsUpdate = true;
+    });
+
+    if (Array.isArray(node.material) && baseMaterial) {
+      node.material = baseMaterial;
+    }
+  });
+}
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -91,6 +118,8 @@ function VrmAvatar({
 
       vrm.scene.scale.setScalar(1.35);
       vrm.scene.rotation.y = avatarYawOffset;
+
+      disableVrmOutlines(vrm);
 
       const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
 
@@ -495,6 +524,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
     const dz =
       (key.has("s") || key.has("ArrowDown") ? 1 : 0) -
       (key.has("w") || key.has("ArrowUp") ? 1 : 0);
+    const isRunning = key.has("r") || key.has("R");
 
     const camForward = new THREE.Vector3(
       Math.sin(viewYawRef.current),
@@ -514,7 +544,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
       moveDir.addScaledVector(camForward, -dz);
       moveDir.normalize();
 
-      const stepDistance = SPEED * delta;
+      const stepDistance = SPEED * (isRunning ? RUN_MULTIPLIER : 1) * delta;
       const moveX = moveDir.x * stepDistance;
       const moveZ = moveDir.z * stepDistance;
       let moved = false;

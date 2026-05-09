@@ -7,6 +7,19 @@ const TERRAIN_SCALE = 1;
 const GROUND_NAME_PATTERN = /^(Island_basemesh|island_cave|bridge|port|ruins)$/i;
 const NON_BLOCKING_NAME_PATTERN = /^(skybox|Ocean_plane)$/i;
 const FORCE_BLOCKING_NAME_PATTERN = /^(rocks_pack|rock__1|ruins(?:_.+)?)$/i;
+const MATERIAL_SHADER_FALLBACK = /clan retainer material/i;
+
+function createFallbackMaterial(material) {
+  const color = material?.color ? material.color.clone() : new THREE.Color("#ffffff");
+  return new THREE.MeshBasicMaterial({
+    color,
+    map: material?.map ?? null,
+    transparent: Boolean(material?.transparent),
+    opacity: typeof material?.opacity === "number" ? material.opacity : 1,
+    alphaTest: typeof material?.alphaTest === "number" ? material.alphaTest : 0,
+    side: material?.side ?? THREE.FrontSide,
+  });
+}
 
 export default function Terrain({ collidersRef, onMapBoundsChange }) {
   const { scene } = useGLTF(TERRAIN_MODEL_URL);
@@ -19,6 +32,20 @@ export default function Terrain({ collidersRef, onMapBoundsChange }) {
 
     scene.traverse((obj) => {
       if (!obj.isMesh) return;
+
+      if (obj.material) {
+        const materials = Array.isArray(obj.material)
+          ? obj.material
+          : [obj.material];
+
+        const updated = materials.map((material) => {
+          if (!material?.name) return material;
+          if (!MATERIAL_SHADER_FALLBACK.test(material.name)) return material;
+          return createFallbackMaterial(material);
+        });
+
+        obj.material = Array.isArray(obj.material) ? updated : updated[0];
+      }
 
       // Terrain meshes are typically high-poly; avoid self-shadow casting cost.
       obj.castShadow = false;

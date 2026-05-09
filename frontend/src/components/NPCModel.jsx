@@ -4,6 +4,32 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
+function disableVrmOutlines(vrm) {
+  if (!vrm?.scene) return;
+
+  vrm.scene.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    const baseMaterial = materials.find((material) => material && !material.isOutline);
+
+    materials.forEach((material) => {
+      if (!material?.isMToonMaterial) return;
+      material.outlineWidthMode = "none";
+      material.outlineWidthFactor = 0;
+      material.isOutline = false;
+      material.needsUpdate = true;
+    });
+
+    if (Array.isArray(node.material) && baseMaterial) {
+      node.material = baseMaterial;
+    }
+  });
+}
+
 export default function NPCModel({ modelPath }) {
   const group = useRef();
   const [vrmInstance, setVrmInstance] = useState(null);
@@ -24,6 +50,8 @@ export default function NPCModel({ modelPath }) {
       vrm.scene.scale.setScalar(1.3);
       vrm.scene.rotation.set(0, Math.PI, 0);
       vrm.scene.position.set(0, 0, 0);
+
+      disableVrmOutlines(vrm);
 
       if (group.current) {
         group.current.clear();
