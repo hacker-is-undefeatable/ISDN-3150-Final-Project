@@ -23,6 +23,7 @@ export default function Game() {
   const [selectedScene, setSelectedScene] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState(ALLOWED_CHARACTER_MODELS[0].code);
   const [selectedTab, setSelectedTab] = useState("Play");
+  const [selectedCardDetail, setSelectedCardDetail] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -151,6 +152,7 @@ export default function Game() {
 
   const cardCollections = useMemo(() => {
     const cardsByCharacter = new Map();
+    const hiddenCardCharacters = new Set(["yara quinn"]);
 
     cards.forEach((card) => {
       const existing = cardsByCharacter.get(card.character_id) || Array.from({ length: 8 });
@@ -158,7 +160,12 @@ export default function Game() {
       cardsByCharacter.set(card.character_id, existing);
     });
 
-    return characters.map((character) => {
+    return characters
+      .filter((character) => {
+        const label = (character.label || character.name || "").trim().toLowerCase();
+        return !hiddenCardCharacters.has(label);
+      })
+      .map((character) => {
       const characterCards = Array.from({ length: 8 }, (_, cardIndex) => {
         const existing = cardsByCharacter.get(character.id)?.[cardIndex];
 
@@ -188,6 +195,14 @@ export default function Game() {
     cardsUnlocked: characters.filter((c) => c.unlocked).length,
     runsPlayed: 12,
     bestScore: 9876,
+  };
+
+  const handleCardSelect = (card, character, cardNumber) => {
+    setSelectedCardDetail({ card, character, cardNumber });
+  };
+
+  const closeCardDetail = () => {
+    setSelectedCardDetail(null);
   };
 
   const handleEnter = () => {
@@ -262,7 +277,7 @@ export default function Game() {
           <section className="card-collection-page">
             <h2 className="lobby-heading">All Cards</h2>
             <div className="lobby-small" style={{ marginBottom: 8 }}>
-              Collect all 8 cards from a character to unlock them. Yara Quinn is unlocked by default.
+              Collect all 8 cards from a character to unlock them.
             </div>
             {charactersLoading ? (
               <p className="lobby-small">Loading cards...</p>
@@ -276,6 +291,7 @@ export default function Game() {
                     character={character}
                     cards={characterCards}
                     collectedCount={collectedCount}
+                    onCardSelect={handleCardSelect}
                   />
                 ))}
               </div>
@@ -304,6 +320,51 @@ export default function Game() {
           </section>
         )}
       </main>
+
+      {selectedCardDetail && (
+        <div className="card-detail-overlay" onClick={closeCardDetail} role="presentation">
+          <div className="card-detail" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="card-detail__media">
+              {selectedCardDetail.card.image_path || selectedCardDetail.card.image || selectedCardDetail.card.thumbnail ? (
+                <img
+                  src={selectedCardDetail.card.image_path || selectedCardDetail.card.image || selectedCardDetail.card.thumbnail}
+                  alt={selectedCardDetail.card.name || `Card ${selectedCardDetail.cardNumber}`}
+                  className={`card-detail__image ${selectedCardDetail.card.unlocked ? "" : "card-detail__image--locked"}`}
+                />
+              ) : (
+                <div className={`card-detail__image-fallback ${selectedCardDetail.card.unlocked ? "" : "card-detail__image--locked"}`}>
+                  Card {selectedCardDetail.cardNumber}
+                </div>
+              )}
+            </div>
+            <div className="card-detail__info">
+              <div className="card-detail__header">
+                <div>
+                  <p className="card-detail__eyebrow">Reward Preview</p>
+                  <h3 className="card-detail__title">
+                    {selectedCardDetail.card.name || `Card ${selectedCardDetail.cardNumber}`}
+                  </h3>
+                </div>
+                <button type="button" className="card-detail__close" onClick={closeCardDetail} aria-label="Close">
+                  &#10005;
+                </button>
+              </div>
+              <p className="card-detail__description">
+                {selectedCardDetail.card.description ||
+                  `A collectible reward card from ${selectedCardDetail.character?.label || selectedCardDetail.character?.name || "this character"}.`}
+              </p>
+              <div className="card-detail__requirements">
+                <span>Unlock requirements</span>
+                <p>
+                  {selectedCardDetail.card.unlocked
+                    ? "Unlocked"
+                    : `Collect this card by completing runs with ${selectedCardDetail.character?.label || selectedCardDetail.character?.name || "this character"}.`}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

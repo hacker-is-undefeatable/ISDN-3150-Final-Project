@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function CardGrid({ character, cards, collectedCount }) {
+export default function CardGrid({ character, cards, collectedCount, onCardSelect }) {
   const isUnlocked = Boolean(character?.unlocked);
 
   return (
@@ -24,9 +24,19 @@ export default function CardGrid({ character, cards, collectedCount }) {
           const cardNumber = card.card_index + 1 || index + 1;
           const unlocked = Boolean(card.unlocked);
           const cardImage = card.image_path || card.image || card.thumbnail;
+          const handleSelect = () => {
+            if (onCardSelect) {
+              onCardSelect(card, character, cardNumber);
+            }
+          };
 
           return (
-            <div key={card.id || `${character?.id}-${index}`} className={`card-collection__card ${unlocked ? "card-collection__card--unlocked" : "card-collection__card--locked"}`}>
+            <button
+              type="button"
+              key={card.id || `${character?.id}-${index}`}
+              className={`card-collection__card card-collection__card-btn ${unlocked ? "card-collection__card--unlocked" : "card-collection__card--locked"}`}
+              onClick={handleSelect}
+            >
               <div className="card-collection__art">
                 {cardImage ? (
                   <img
@@ -50,7 +60,7 @@ export default function CardGrid({ character, cards, collectedCount }) {
                 )}
               </div>
               <div className="card-collection__label">Card {cardNumber}</div>
-            </div>
+            </button>
           );
         })}
       </div>
