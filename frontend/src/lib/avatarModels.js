@@ -23,5 +23,5 @@ export function getCharacterModelPath(modelCode) {
     ? modelCode
     : DEFAULT_CHARACTER_MODEL;
 
-  return `/model/${safeCode}.vrm`;
+  return `/model/character/${safeCode}.vrm`;
 }
