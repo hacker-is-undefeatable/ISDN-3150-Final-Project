@@ -21,6 +21,7 @@ export function ensureProgress() {
   return (
     loadProgress() || {
       unlockedCharacters: [],
+      cardShards: {},
       discoveredEvents: [],
       runHistory: [],
       stats: {
@@ -29,6 +30,27 @@ export function ensureProgress() {
       }
     }
   );
+}
+
+export function getShardCount(shardKey) {
+  const progress = ensureProgress();
+  const count = progress.cardShards?.[shardKey];
+  return typeof count === "number" ? count : 0;
+}
+
+export function addShards(shardKeys, maxPerCard = 4) {
+  const progress = ensureProgress();
+  const next = { ...progress, cardShards: { ...(progress.cardShards || {}) } };
+
+  shardKeys.forEach((key) => {
+    const current = typeof next.cardShards[key] === "number" ? next.cardShards[key] : 0;
+    if (current < maxPerCard) {
+      next.cardShards[key] = current + 1;
+    }
+  });
+
+  saveProgress(next);
+  return next;
 }
 
 export function unlockCharacter(cardId) {

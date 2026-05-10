@@ -7,9 +7,11 @@ import CharacterGrid from "../components/CharacterGrid";
 import { ALLOWED_CHARACTER_MODELS, DEFAULT_CHARACTER_MODEL } from "../lib/avatarModels";
 import SceneSelector from "../components/SceneSelector";
 import CardGrid from "../components/CardGrid";
+import CardShardImage from "../components/CardShardImage";
 import StatsPanel from "../components/StatsPanel";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { ensureProgress, getShardCount } from "../game/save/progressStore";
 
 export default function Game() {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ export default function Game() {
 
   useEffect(() => {
     let isMounted = true;
+    ensureProgress();
 
     const loadCharacters = async () => {
       if (!supabase || !isAuthenticated || !user?.id) {
@@ -49,9 +52,11 @@ export default function Game() {
               id: `${index + 1}-${cardIndex}`,
               character_id: index + 1,
               card_index: cardIndex,
+              shardKey: `${index + 1}-${cardIndex}`,
               name: `${model.label} Card ${cardIndex + 1}`,
               image_path: `/card-img/${index + 1}/card${cardIndex + 1}.png`,
-              unlocked: false,
+              shardCount: getShardCount(`${index + 1}-${cardIndex}`),
+              unlocked: getShardCount(`${index + 1}-${cardIndex}`) >= 4,
             }))
           )
         );
@@ -71,7 +76,7 @@ export default function Game() {
         supabase.from("characters").select("id, name, description, model_path, image_path").order("id", { ascending: true }),
         supabase.from("user_characters").select("character_id, unlocked").eq("user_id", user.id),
         supabase.from("cards").select("id, character_id, card_index, name").order("character_id", { ascending: true }).order("card_index", { ascending: true }),
-        supabase.from("user_cards").select("card_id, unlocked").eq("user_id", user.id),
+        supabase.from("user_cards").select("card_id, unlocked, shard_count").eq("user_id", user.id),
       ]);
 
       if (!isMounted) return;
@@ -109,6 +114,7 @@ export default function Game() {
 
       const unlockMap = new Map((unlockRows || []).map((row) => [row.character_id, Boolean(row.unlocked)]));
       const cardUnlockMap = new Map((userCardRows || []).map((row) => [row.card_id, Boolean(row.unlocked)]));
+      const cardShardMap = new Map((userCardRows || []).map((row) => [row.card_id, Number(row.shard_count) || 0]));
       const merged = (characterRows || []).map((row) => ({
         ...row,
         code: row.model_path?.replace("/model/", "")?.replace(".vrm", "") || `model${String(row.id - 1).padStart(5, "0")}`,
@@ -116,11 +122,21 @@ export default function Game() {
         unlocked: row.id === 11 || unlockMap.get(row.id) || false,
       }));
 
-      const mergedCards = (cardRows || []).map((row) => ({
-        ...row,
-        image_path: `/card-img/${row.character_id}/card${row.card_index + 1}.png`,
-        unlocked: cardUnlockMap.get(row.id) || false,
-      }));
+      const mergedCards = (cardRows || []).map((row) => {
+        const shardKey = `${row.character_id}-${row.card_index}`;
+        const storedCount = getShardCount(shardKey);
+        const rowCount = cardShardMap.get(row.id) || 0;
+        const unlockFallback = cardUnlockMap.get(row.id) ? 4 : 0;
+        const shardCount = Math.max(storedCount, rowCount, unlockFallback);
+
+        return {
+          ...row,
+          shardKey,
+          image_path: `/card-img/${row.character_id}/card${row.card_index + 1}.png`,
+          shardCount,
+          unlocked: shardCount >= 4,
+        };
+      });
 
       setCharacters(merged);
       setCards(mergedCards);
@@ -174,9 +190,11 @@ export default function Game() {
             id: `${character.id}-${cardIndex}`,
             character_id: character.id,
             card_index: cardIndex,
+              shardKey: `${character.id}-${cardIndex}`,
             name: `${character.label || character.name} Card ${cardIndex + 1}`,
             image_path: `/card-img/${character.id}/card${cardIndex + 1}.png`,
-            unlocked: false,
+              shardCount: getShardCount(`${character.id}-${cardIndex}`),
+              unlocked: getShardCount(`${character.id}-${cardIndex}`) >= 4,
           }
         );
       });
@@ -184,7 +202,7 @@ export default function Game() {
       return {
         character,
         cards: characterCards,
-        collectedCount: characterCards.filter((card) => card.unlocked).length,
+          collectedCount: characterCards.filter((card) => (Number(card.shardCount) || 0) >= 4).length,
       };
     });
   }, [characters, cards]);
@@ -326,13 +344,14 @@ export default function Game() {
           <div className="card-detail" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
             <div className="card-detail__media">
               {selectedCardDetail.card.image_path || selectedCardDetail.card.image || selectedCardDetail.card.thumbnail ? (
-                <img
-                  src={selectedCardDetail.card.image_path || selectedCardDetail.card.image || selectedCardDetail.card.thumbnail}
-                  alt={selectedCardDetail.card.name || `Card ${selectedCardDetail.cardNumber}`}
-                  className={`card-detail__image ${selectedCardDetail.card.unlocked ? "" : "card-detail__image--locked"}`}
+                <CardShardImage
+                  imageUrl={selectedCardDetail.card.image_path || selectedCardDetail.card.image || selectedCardDetail.card.thumbnail}
+                  shardCount={selectedCardDetail.card.shardCount}
+                  totalShards={4}
+                  className="card-shard--detail"
                 />
               ) : (
-                <div className={`card-detail__image-fallback ${selectedCardDetail.card.unlocked ? "" : "card-detail__image--locked"}`}>
+                <div className="card-detail__image-fallback">
                   Card {selectedCardDetail.cardNumber}
                 </div>
               )}
@@ -356,9 +375,9 @@ export default function Game() {
               <div className="card-detail__requirements">
                 <span>Unlock requirements</span>
                 <p>
-                  {selectedCardDetail.card.unlocked
+                  {(Number(selectedCardDetail.card.shardCount) || 0) >= 4
                     ? "Unlocked"
-                    : `Collect this card by completing runs with ${selectedCardDetail.character?.label || selectedCardDetail.character?.name || "this character"}.`}
+                    : `Collect 4 shards by completing runs with ${selectedCardDetail.character?.label || selectedCardDetail.character?.name || "this character"}.`}
                 </p>
               </div>
             </div>
