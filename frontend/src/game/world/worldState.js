@@ -1,9 +1,11 @@
 export const initialWorldState = {
   runSeed: 0,
   timeOfDay: "night",
-  weather: "clear",
+  weather: "cloudy",
   dangerLevel: 0,
   corruption: 0,
+  ritualIntensity: 0,
+  supernaturalPulse: 0,
   activeEvents: [],
   objectiveTargets: [],
   objectivesPreloaded: false,

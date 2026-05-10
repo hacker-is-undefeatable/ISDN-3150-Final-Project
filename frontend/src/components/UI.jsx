@@ -5,6 +5,7 @@ export default function UI({
   npcPosition,
   objectiveTarget,
   extractionTarget,
+  hudState,
   onToggleCameraMode,
 }) {
   const formatCoord = (value) =>
@@ -109,6 +110,15 @@ export default function UI({
           </button>
         </div>
         <p className="controls-tip">Move with WASD or arrow keys. Explore freely.</p>
+        {hudState?.objectiveText && <p className="objective-hud">{hudState.objectiveText}</p>}
+        <div className="status-row">
+          <span className="status-badge">Corruption: {Math.round(hudState?.corruption || 0)}</span>
+          <span className="status-badge">Weather: {hudState?.weather || "unknown"}</span>
+          <span className="status-badge">Ritual: {Math.round((hudState?.ritualIntensity || 0) * 100)}%</span>
+          <span className={`status-badge ${hudState?.extractionReady ? "status-badge--ready" : ""}`}>
+            Extraction: {hudState?.extractionReady ? "Unlocked" : "Locked"}
+          </span>
+        </div>
       </div>
 
       <div className="minimap-hud" aria-label="Minimap">

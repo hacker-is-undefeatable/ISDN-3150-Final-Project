@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import UI from "./UI";
 import PlayerRig from "./PlayerRig";
 import Terrain from "./Terrain";
-import NPCInteractionManager from "../game/components/NPCInteractionManager";
 import NPCModel from "./NPCModel";
 import WeatherController from "../game/components/WeatherController";
-import EventSpawner from "../game/components/EventSpawner";
 import AudioAtmosphere from "../game/components/AudioAtmosphere";
-import RunOrchestrator from "../game/components/RunOrchestrator";
-import RunObjectivePanel from "../game/components/RunObjectivePanel";
 import { useWorldStore } from "../game/state/worldStore";
+import { useRunStore } from "../game/state/runStore";
+import SupernaturalGameplayLayer from "../game/components/SupernaturalGameplayLayer";
+import RunOrchestrator from "../game/components/RunOrchestrator";
 import ObjectiveManager from "../game/components/ObjectiveManager";
 import ExtractionManager from "../game/components/ExtractionManager";
 import RunOutcomeManager from "../game/components/RunOutcomeManager";
@@ -23,8 +22,16 @@ export default function GameScene({ avatarModelPath }) {
 
   const [cameraMode, setCameraMode] = useState("third-person");
   const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0, z: 2 });
-  const objectiveTargets = useWorldStore((state) => state.world.objectiveTargets || []);
   const extractionTarget = useWorldStore((state) => state.world.extractionTarget);
+  const objectiveTargets = useWorldStore((state) => state.world.objectiveTargets || []);
+  const extractionAvailable = useRunStore((state) => state.extractionAvailable);
+  const [hudState, setHudState] = useState({
+    objectiveText: "Reach the ruins and light the candle ritual.",
+    corruption: 0,
+    weather: "cloudy",
+    ritualIntensity: 0,
+    extractionReady: false
+  });
   const [mapBounds, setMapBounds] = useState({
     minX: -25,
     maxX: 25,
@@ -46,6 +53,13 @@ export default function GameScene({ avatarModelPath }) {
   }, []);
 
   useEffect(() => {
+    setHudState((prev) => ({
+      ...prev,
+      extractionReady: extractionAvailable
+    }));
+  }, [extractionAvailable]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return undefined;
@@ -59,25 +73,6 @@ export default function GameScene({ avatarModelPath }) {
       canvas.removeEventListener("webglcontextrestored", handleContextRestored, false);
     };
   }, [handleContextLost, handleContextRestored]);
-
-  const nearestObjective = useMemo(() => {
-    if (!objectiveTargets.length || !playerCoords) return null;
-    let best = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    objectiveTargets.forEach((target) => {
-      if (!target?.position) return;
-      const dx = target.position.x - playerCoords.x;
-      const dy = target.position.y - playerCoords.y;
-      const dz = target.position.z - playerCoords.z;
-      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = target;
-      }
-    });
-    return best;
-  }, [objectiveTargets, playerCoords]);
-
 
   return (
     <div className="game-shell">
@@ -102,32 +97,15 @@ export default function GameScene({ avatarModelPath }) {
         <directionalLight name="weather-fill" position={[-8, 10, -12]} intensity={0.35} />
         <Terrain collidersRef={terrainCollidersRef} onMapBoundsChange={setMapBounds} />
         <WeatherController />
-        <EventSpawner />
         <AudioAtmosphere />
+        <SupernaturalGameplayLayer playerCoords={playerCoords} onHudChange={setHudState} />
+        <RunOrchestrator />
         {npcPosition && (
           <group position={[npcPosition.x, npcPosition.y, npcPosition.z]}>
             <pointLight intensity={1.1} distance={8} color="#ffd166" />
             <NPCModel modelPath="/model/genshin/model_kokomi.vrm" />
           </group>
         )}
-        {objectiveTargets.map((target, index) => (
-          <group
-            key={target.id || `objective_npc_${index}`}
-            position={[target.position.x, target.position.y, target.position.z]}
-          >
-            {nearestObjective?.id === target.id ? (
-              <>
-                <pointLight intensity={0.9} distance={6} color="#9bffcf" />
-                <NPCModel modelPath="/model/genshin/model_kokomi.vrm" />
-              </>
-            ) : (
-              <mesh>
-                <sphereGeometry args={[0.35, 14, 14]} />
-                <meshStandardMaterial color="#9bffcf" emissive="#2b7a5b" emissiveIntensity={0.6} />
-              </mesh>
-            )}
-          </group>
-        ))}
         <PlayerRig
           mode={cameraMode}
           terrainCollidersRef={terrainCollidersRef}
@@ -135,6 +113,11 @@ export default function GameScene({ avatarModelPath }) {
           avatarModelPath={avatarModelPath}
         />
       </Canvas>
+
+      <ObjectiveManager playerCoords={playerCoords} />
+      <ExtractionManager playerCoords={playerCoords} />
+
+      <RunOutcomeManager />
 
       {isContextLost && (
         <div className="webgl-warning">
@@ -149,29 +132,10 @@ export default function GameScene({ avatarModelPath }) {
         npcPosition={npcPosition}
         objectiveTarget={objectiveTargets}
         extractionTarget={extractionTarget}
+        hudState={hudState}
         onToggleCameraMode={toggleCameraMode}
       />
 
-      <RunObjectivePanel />
-      <ObjectiveManager playerCoords={playerCoords} />
-      <ExtractionManager playerCoords={playerCoords} />
-      <RunOutcomeManager />
-
-      <RunOrchestrator />
-
-      <NPCInteractionManager
-        npcId="harbor_guide"
-        npcPosition={npcPosition}
-        playerCoords={playerCoords}
-      />
-      {objectiveTargets.map((target, index) => (
-        <NPCInteractionManager
-          key={target.id || `objective_npc_${index}`}
-          npcId={`objective_${target.location || "target"}_${index}`}
-          npcPosition={target.position}
-          playerCoords={playerCoords}
-        />
-      ))}
     </div>
   );
 }
