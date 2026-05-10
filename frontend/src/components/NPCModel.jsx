@@ -66,26 +66,38 @@ export default function NPCModel({ modelPath }) {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
-    loader.load(modelPath, (gltf) => {
-      if (cancelled) return;
+    const loadModel = async () => {
+      try {
+        const gltf = await loader.loadAsync(modelPath);
+        if (cancelled) return;
 
-      const vrm = gltf.userData.vrm;
-      if (!vrm) return;
+        const vrm = gltf.userData.vrm;
+        if (!vrm) return;
 
-      vrm.scene.scale.setScalar(1.3);
-      vrm.scene.rotation.set(0, Math.PI, 0);
-      vrm.scene.position.set(0, 0, 0);
+        vrm.scene.scale.setScalar(1.3);
+        vrm.scene.rotation.set(0, Math.PI, 0);
+        vrm.scene.position.set(0, 0, 0);
 
-      disableVrmOutlines(vrm);
+        disableVrmOutlines(vrm);
 
-      if (group.current) {
-        group.current.clear();
-        group.current.add(vrm.scene);
+        if (group.current) {
+          group.current.clear();
+          group.current.add(vrm.scene);
+        }
+
+        vrmRef.current = vrm;
+        setVrmInstance(vrm);
+      } catch (error) {
+        if (cancelled) return;
+        if (group.current) {
+          group.current.clear();
+        }
+        vrmRef.current = null;
+        setVrmInstance(null);
       }
+    };
 
-      vrmRef.current = vrm;
-      setVrmInstance(vrm);
-    });
+    loadModel();
 
     return () => {
       cancelled = true;

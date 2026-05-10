@@ -31,7 +31,7 @@ const GRAVITY = 18;
 const JUMP_VELOCITY = 6.2;
 const MAX_FALL_SPEED = 20;
 const JUMP_BUFFER_TIME = 0.12;
-const POSITION_REPORT_INTERVAL = 0.1;
+const POSITION_REPORT_INTERVAL = 0.2;
 
 function disableVrmOutlines(vrm) {
   if (!vrm?.scene) return;
@@ -110,43 +110,48 @@ function VrmAvatar({
     bonesRef.current = {};
     idleBoneRotationsRef.current = null;
 
-    loader.load(avatarModelPath, (gltf) => {
-      if (cancelled) return;
+    const loadAvatar = async () => {
+      try {
+        const gltf = await loader.loadAsync(avatarModelPath);
+        if (cancelled) return;
 
-      const vrm = gltf.userData.vrm;
-      if (!vrm) return;
+        const vrm = gltf.userData.vrm;
+        if (!vrm) return;
 
-      vrm.scene.scale.setScalar(1.35);
-      vrm.scene.rotation.y = avatarYawOffset;
+        vrm.scene.scale.setScalar(1.35);
+        vrm.scene.rotation.y = avatarYawOffset;
 
-      disableVrmOutlines(vrm);
+        disableVrmOutlines(vrm);
 
-      const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
+        const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
 
-      const bones = {
-        leftUpperArm: getBone("leftUpperArm"),
-        rightUpperArm: getBone("rightUpperArm"),
-        leftUpperLeg: getBone("leftUpperLeg"),
-        rightUpperLeg: getBone("rightUpperLeg"),
-        hips: getBone("hips"),
-      };
+        const bones = {
+          leftUpperArm: getBone("leftUpperArm"),
+          rightUpperArm: getBone("rightUpperArm"),
+          leftUpperLeg: getBone("leftUpperLeg"),
+          rightUpperLeg: getBone("rightUpperLeg"),
+          hips: getBone("hips"),
+        };
 
-      bonesRef.current = bones;
+        bonesRef.current = bones;
 
-      const idle = {};
-      Object.entries(bones).forEach(([k, b]) => {
-        if (b) idle[k] = b.quaternion.clone();
-      });
+        const idle = {};
+        Object.entries(bones).forEach(([k, b]) => {
+          if (b) idle[k] = b.quaternion.clone();
+        });
 
-      idleBoneRotationsRef.current = idle;
+        idleBoneRotationsRef.current = idle;
 
-      setVrmScene(vrm.scene);
-      setVrmInstance(vrm);
-    }, undefined, () => {
-      if (cancelled) return;
-      setVrmScene(null);
-      setVrmInstance(null);
-    });
+        setVrmScene(vrm.scene);
+        setVrmInstance(vrm);
+      } catch (error) {
+        if (cancelled) return;
+        setVrmScene(null);
+        setVrmInstance(null);
+      }
+    };
+
+    loadAvatar();
 
     return () => {
       cancelled = true;
@@ -293,6 +298,14 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
   const collisionNormalRef = useRef(new THREE.Vector3());
   const collisionOriginRef = useRef(new THREE.Vector3());
   const intersectionsRef = useRef([]);
+  const camForwardRef = useRef(new THREE.Vector3());
+  const camRightRef = useRef(new THREE.Vector3());
+  const moveDirRef = useRef(new THREE.Vector3());
+  const cameraPosRef = useRef(new THREE.Vector3());
+  const lookDirRef = useRef(new THREE.Vector3());
+  const orbitRef = useRef(new THREE.Vector3());
+  const thirdPersonPosRef = useRef(new THREE.Vector3());
+  const lookAtRef = useRef(new THREE.Vector3());
   const positionReportRef = useRef({
     timer: 0,
     lastSignature: "",
@@ -526,19 +539,19 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
       (key.has("w") || key.has("ArrowUp") ? 1 : 0);
     const isRunning = key.has("r") || key.has("R");
 
-    const camForward = new THREE.Vector3(
+    const camForward = camForwardRef.current.set(
       Math.sin(viewYawRef.current),
       0,
       -Math.cos(viewYawRef.current)
     );
 
-    const camRight = new THREE.Vector3(
+    const camRight = camRightRef.current.set(
       Math.cos(viewYawRef.current),
       0,
       Math.sin(viewYawRef.current)
     );
 
-    const moveDir = new THREE.Vector3();
+    const moveDir = moveDirRef.current.set(0, 0, 0);
     if (dx || dz) {
       moveDir.addScaledVector(camRight, dx);
       moveDir.addScaledVector(camForward, -dz);
@@ -663,37 +676,38 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
     }
 
     if (mode === "first-person") {
-      const pos = new THREE.Vector3(
+      const pos = cameraPosRef.current.set(
         positionRef.current.x,
         positionRef.current.y + CAMERA_HEIGHT_OFFSET + headBob,
         positionRef.current.z
       );
 
-      const look = new THREE.Vector3(
+      const look = lookDirRef.current.set(
         Math.sin(viewYawRef.current) * pitchCos,
         pitchSin,
         -Math.cos(viewYawRef.current) * pitchCos
       );
 
       camera.position.lerp(pos, delta * 10);
-      camera.lookAt(pos.clone().add(look));
+      lookAtRef.current.copy(pos).add(look);
+      camera.lookAt(lookAtRef.current);
       return;
     }
 
-    const orbit = new THREE.Vector3(
+    const orbit = orbitRef.current.set(
       Math.sin(viewYawRef.current) * pitchCos,
       pitchSin,
       -Math.cos(viewYawRef.current) * pitchCos
     );
 
-    const camPos = new THREE.Vector3()
+    const camPos = thirdPersonPosRef.current
       .copy(positionRef.current)
       .addScaledVector(orbit, -THIRD_PERSON_CAMERA_DISTANCE)
-      .add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET + headBob, 0));
+      .add(cameraPosRef.current.set(0, CAMERA_HEIGHT_OFFSET + headBob, 0));
 
-    const lookAt = new THREE.Vector3()
+    const lookAt = lookAtRef.current
       .copy(positionRef.current)
-      .add(new THREE.Vector3(0, CHARACTER_ROOT_OFFSET + 0.2, 0));
+      .add(cameraPosRef.current.set(0, CHARACTER_ROOT_OFFSET + 0.2, 0));
 
     camera.position.lerp(camPos, delta * 6);
     camera.lookAt(lookAt);

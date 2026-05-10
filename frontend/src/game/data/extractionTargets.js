@@ -5,7 +5,16 @@ const EXTRACTION_TARGETS = [
   { id: "bridge_crossing", label: "Bridge crossing", position: { x: 32.7, y: 23.04, z: 4.9 } }
 ];
 
-export function pickExtractionTarget() {
-  const choice = EXTRACTION_TARGETS[Math.floor(Math.random() * EXTRACTION_TARGETS.length)];
+function createSeededRandom(seed) {
+  let state = Number.isFinite(seed) ? seed : Date.now();
+  return () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+}
+
+export function pickExtractionTarget(seed) {
+  const random = createSeededRandom(seed);
+  const choice = EXTRACTION_TARGETS[Math.floor(random() * EXTRACTION_TARGETS.length)];
   return choice ? { ...choice } : null;
 }

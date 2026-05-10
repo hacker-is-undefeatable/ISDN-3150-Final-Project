@@ -83,6 +83,20 @@ function clonePosition([x, y, z]) {
   return { x, y, z };
 }
 
+function createSeededRandom(seed) {
+  let state = Number.isFinite(seed) ? seed : Date.now();
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+function jitterPosition([x, y, z], random, magnitude) {
+  const dx = (random() * 2 - 1) * magnitude;
+  const dz = (random() * 2 - 1) * magnitude;
+  return [x + dx, y, z + dz];
+}
+
 function WorldModel({ path, position, rotation = [0, 0, 0], scale = 1, visible = true, fitSize = null }) {
   const gltf = useGLTF(path);
   const clone = useMemo(() => {
@@ -168,6 +182,31 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   const shoreAudioRef = useRef(null);
   const ritualAudioRef = useRef(null);
   const footstepAudioRef = useRef(null);
+  const runSeed = Number(world.runSeed) || 0;
+
+  const spawnPositions = useMemo(() => {
+    const makeRandom = (salt) => createSeededRandom(runSeed + salt);
+
+    return {
+      ruins: jitterPosition([LOCATIONS.ruins.x, LOCATIONS.ruins.y, LOCATIONS.ruins.z], makeRandom(1), 1.1),
+      cave: jitterPosition([LOCATIONS.cave.x, LOCATIONS.cave.y, LOCATIONS.cave.z], makeRandom(2), 0.9),
+      port: jitterPosition([LOCATIONS.port.x, LOCATIONS.port.y, LOCATIONS.port.z], makeRandom(3), 1.5),
+      shoreline: jitterPosition([LOCATIONS.shoreline.x, LOCATIONS.shoreline.y, LOCATIONS.shoreline.z], makeRandom(4), 1.2),
+      bridge: jitterPosition([LOCATIONS.bridge.x, LOCATIONS.bridge.y, LOCATIONS.bridge.z], makeRandom(5), 1.4),
+      forest: jitterPosition([LOCATIONS.forest.x, LOCATIONS.forest.y, LOCATIONS.forest.z], makeRandom(6), 1.1),
+      candles: CANDLE_POSITIONS.map((position, index) => jitterPosition(position, makeRandom(20 + index), 0.7)),
+      relics: RELIC_POSITIONS.map((position, index) => jitterPosition(position, makeRandom(40 + index), 0.7)),
+      totem: jitterPosition(FOREST_TOTEM_POSITION, makeRandom(60), 0.9),
+      skull: jitterPosition(FOREST_SKULL_POSITION, makeRandom(61), 0.7),
+      lantern: jitterPosition(FOREST_LANTERN_POSITION, makeRandom(62), 0.8),
+      tablet: jitterPosition(TABLET_POSITION, makeRandom(63), 0.8),
+      chest: jitterPosition(CHEST_POSITION, makeRandom(64), 1.0),
+      swordStone: jitterPosition(SWORD_STONE_POSITION, makeRandom(65), 1.0),
+      portGhostShip: jitterPosition(PORT_GHOST_SHIP_POSITION, makeRandom(66), 1.5),
+      portAirship: jitterPosition(PORT_AIRSHIP_POSITION, makeRandom(67), 1.8),
+      shoreGhostShip: jitterPosition(SHORE_GHOST_SHIP_POSITION, makeRandom(68), 1.5)
+    };
+  }, [runSeed]);
 
   const spawnBurst = useCallback((position, color = "#ffd27d") => {
     burstIdRef.current += 1;
@@ -246,8 +285,25 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   }, [addActiveEvent, patchWorld, world]);
 
   useFrame((_, delta) => {
-    setParticleBursts((prev) => prev.map((item) => ({ ...item, age: item.age + delta })).filter((item) => item.age < 1.1));
-    setAtmospherePulse((prev) => Math.max(0, prev - delta * 0.4));
+    setParticleBursts((prev) => {
+      if (!prev.length) return prev;
+
+      const next = [];
+      for (const item of prev) {
+        const age = item.age + delta;
+        if (age < 1.1) {
+          next.push({ ...item, age });
+        }
+      }
+
+      return next;
+    });
+
+    setAtmospherePulse((prev) => {
+      if (prev <= 0) return prev;
+      const next = Math.max(0, prev - delta * 0.4);
+      return next === prev ? prev : next;
+    });
 
     if (!hasAudioGestureRef.current || !playerCoords) return;
     const moved = distance3D(previousCoordsRef.current, playerCoords);
@@ -311,36 +367,36 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   const interactions = useMemo(() => {
     const list = [];
 
-    CANDLE_POSITIONS.forEach((position, candleIndex) => {
+    spawnPositions.candles.forEach((position, candleIndex) => {
       if (!litCandles[candleIndex]) {
         list.push({ id: `candle_${candleIndex}`, prompt: "Press E to light candle", position: clonePosition(position), radius: 2.4 });
       }
     });
 
-    RELIC_POSITIONS.forEach((position, relicIndex) => {
+    spawnPositions.relics.forEach((position, relicIndex) => {
       if (!collectedRelics[relicIndex]) {
         list.push({ id: `relic_${relicIndex}`, prompt: "Press E to recover relic fragment", position: clonePosition(position), radius: 2.4 });
       }
     });
 
     if (collectedRelics.every(Boolean) && !lanternRepaired) {
-      list.push({ id: "repair_lantern", prompt: "Press E to repair lantern", position: clonePosition(FOREST_LANTERN_POSITION), radius: 2.8 });
+      list.push({ id: "repair_lantern", prompt: "Press E to repair lantern", position: clonePosition(spawnPositions.lantern), radius: 2.8 });
     }
 
     if (!swordPulled && ritualCompleted && lanternRepaired) {
-      list.push({ id: "pull_sword", prompt: "Press E to pull sword", position: clonePosition(SWORD_STONE_POSITION), radius: 3.0 });
+      list.push({ id: "pull_sword", prompt: "Press E to pull sword", position: clonePosition(spawnPositions.swordStone), radius: 3.0 });
     }
 
     if (!tabletInspected && hiddenClueVisible) {
-      list.push({ id: "inspect_tablet", prompt: "Press E to inspect tablet", position: clonePosition(TABLET_POSITION), radius: 2.8 });
+      list.push({ id: "inspect_tablet", prompt: "Press E to inspect tablet", position: clonePosition(spawnPositions.tablet), radius: 2.8 });
     }
 
     if (!chestOpened) {
-      list.push({ id: "open_chest", prompt: "Press E to open chest", position: clonePosition(CHEST_POSITION), radius: 2.9 });
+      list.push({ id: "open_chest", prompt: "Press E to open chest", position: clonePosition(spawnPositions.chest), radius: 2.9 });
     }
 
     if (!totemCleansed) {
-      list.push({ id: "cleanse_totem", prompt: "Press E to cleanse totem", position: clonePosition(FOREST_TOTEM_POSITION), radius: 2.8 });
+      list.push({ id: "cleanse_totem", prompt: "Press E to cleanse totem", position: clonePosition(spawnPositions.totem), radius: 2.8 });
     }
 
     return list;
@@ -373,7 +429,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
     if (nearestInteraction.id.startsWith("candle_")) {
       const candleIndex = Number(nearestInteraction.id.replace("candle_", ""));
       const expected = CANDLE_SEQUENCE[inputSequence.length];
-      spawnBurst(CANDLE_POSITIONS[candleIndex], "#ffbf78");
+      spawnBurst(spawnPositions.candles[candleIndex], "#ffbf78");
 
       if (expected === candleIndex) {
         const nextLit = [...litCandles];
@@ -424,7 +480,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
       const next = [...collectedRelics];
       next[relicIndex] = true;
       setCollectedRelics(next);
-      spawnBurst(RELIC_POSITIONS[relicIndex], "#9fe8ff");
+      spawnBurst(spawnPositions.relics[relicIndex], "#9fe8ff");
       setObjectiveText(`Relic fragments recovered: ${next.filter(Boolean).length}/4`);
       return;
     }
@@ -447,7 +503,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
       setTabletInspected(true);
       setObjectiveText("Bridge resonance detected. Pull the sword from the stone.");
       setAtmospherePulse((prev) => Math.min(2, prev + 0.4));
-      spawnBurst(TABLET_POSITION, "#c0b7ff");
+      spawnBurst(spawnPositions.tablet, "#c0b7ff");
 
       await callBackendInteraction(
         { type: "tablet_inspection", action: "inspect_tablet", state: {} },
@@ -459,7 +515,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
     if (nearestInteraction.id === "open_chest") {
       setChestOpened(true);
       setObjectiveText("Port cache opened. Supplies secured for extraction.");
-      spawnBurst(CHEST_POSITION, "#ffd7aa");
+      spawnBurst(spawnPositions.chest, "#ffd7aa");
 
       await callBackendInteraction(
         { type: "port_cache", action: "open_chest", state: {} },
@@ -484,7 +540,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
       setSwordPulled(true);
       setAtmospherePulse((prev) => Math.min(2, prev + 1.15));
       setObjectiveText("Sword pulled. Extraction now available at Port.");
-      spawnBurst(SWORD_STONE_POSITION, "#f4f4ff");
+      spawnBurst(spawnPositions.swordStone, "#f4f4ff");
 
       await callBackendInteraction(
         { type: "sword_event", action: "pull_sword", state: {} },
@@ -528,10 +584,10 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   return (
     <group>
       <group>
-        <WorldModel path={MODELS.ritualCircle} position={[LOCATIONS.ruins.x, LOCATIONS.ruins.y, LOCATIONS.ruins.z]} scale={1.08} fitSize={4.0} />
-        <WorldModel path={MODELS.altar} position={[LOCATIONS.ruins.x + 0.2, LOCATIONS.ruins.y + 0.02, LOCATIONS.ruins.z - 1.2]} scale={1.0} fitSize={2.4} />
+        <WorldModel path={MODELS.ritualCircle} position={spawnPositions.ruins} scale={1.08} fitSize={4.0} />
+        <WorldModel path={MODELS.altar} position={[spawnPositions.ruins[0] + 0.2, spawnPositions.ruins[1] + 0.02, spawnPositions.ruins[2] - 1.2]} scale={1.0} fitSize={2.4} />
 
-        {CANDLE_POSITIONS.map((position, index) => (
+        {spawnPositions.candles.map((position, index) => (
           <group key={`candle_${index}`}>
             {litCandles[index] ? (
               <>
@@ -546,8 +602,8 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
 
         {ritualCompleted && (
           <>
-            <pointLight position={[LOCATIONS.ruins.x, LOCATIONS.ruins.y + 1.7, LOCATIONS.ruins.z]} intensity={2.2 + atmospherePulse * 0.6} distance={11} color="#d7b4ff" />
-            <mesh position={[LOCATIONS.ruins.x, LOCATIONS.ruins.y + 0.08, LOCATIONS.ruins.z]} rotation={[-Math.PI / 2, 0, 0]}>
+            <pointLight position={[spawnPositions.ruins[0], spawnPositions.ruins[1] + 1.7, spawnPositions.ruins[2]]} intensity={2.2 + atmospherePulse * 0.6} distance={11} color="#d7b4ff" />
+            <mesh position={[spawnPositions.ruins[0], spawnPositions.ruins[1] + 0.08, spawnPositions.ruins[2]]} rotation={[-Math.PI / 2, 0, 0]}>
               <ringGeometry args={[2.3, 2.8, 64]} />
               <meshBasicMaterial color="#c79fff" transparent opacity={0.45 + atmospherePulse * 0.12} />
             </mesh>
@@ -556,63 +612,63 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
       </group>
 
       <group>
-        <WorldModel path={MODELS.woodenTotem} position={FOREST_TOTEM_POSITION} scale={1.0} fitSize={2.2} />
-        <WorldModel path={MODELS.skull} position={FOREST_SKULL_POSITION} scale={1.05} fitSize={0.9} />
+        <WorldModel path={MODELS.woodenTotem} position={spawnPositions.totem} scale={1.0} fitSize={2.2} />
+        <WorldModel path={MODELS.skull} position={spawnPositions.skull} scale={1.05} fitSize={0.9} />
         {!lanternRepaired ? (
           <>
-            <WorldModel path={MODELS.brokenLantern} position={FOREST_LANTERN_POSITION} scale={1.25} fitSize={1.3} />
-            <pointLight position={[FOREST_LANTERN_POSITION[0], FOREST_LANTERN_POSITION[1] + 0.45, FOREST_LANTERN_POSITION[2]]} intensity={0.3} distance={2.5} color="#8d7f63" />
+            <WorldModel path={MODELS.brokenLantern} position={spawnPositions.lantern} scale={1.25} fitSize={1.3} />
+            <pointLight position={[spawnPositions.lantern[0], spawnPositions.lantern[1] + 0.45, spawnPositions.lantern[2]]} intensity={0.3} distance={2.5} color="#8d7f63" />
           </>
         ) : (
           <>
-            <WorldModel path={MODELS.repairedLantern} position={FOREST_LANTERN_POSITION} scale={1.25} fitSize={1.3} />
-            <pointLight position={[FOREST_LANTERN_POSITION[0], FOREST_LANTERN_POSITION[1] + 1.1, FOREST_LANTERN_POSITION[2]]} intensity={2.3} distance={8.5} color="#ffe39d" />
+            <WorldModel path={MODELS.repairedLantern} position={spawnPositions.lantern} scale={1.25} fitSize={1.3} />
+            <pointLight position={[spawnPositions.lantern[0], spawnPositions.lantern[1] + 1.1, spawnPositions.lantern[2]]} intensity={2.3} distance={8.5} color="#ffe39d" />
           </>
         )}
 
-        {!collectedRelics[0] && <WorldModel path={MODELS.relic1} position={RELIC_POSITIONS[0]} scale={0.95} fitSize={0.55} />}
-        {!collectedRelics[1] && <WorldModel path={MODELS.relic2} position={RELIC_POSITIONS[1]} scale={0.95} fitSize={0.55} />}
-        {!collectedRelics[2] && <WorldModel path={MODELS.relic3} position={RELIC_POSITIONS[2]} scale={0.95} fitSize={0.55} />}
-        {!collectedRelics[3] && <WorldModel path={MODELS.relic4} position={RELIC_POSITIONS[3]} scale={0.95} fitSize={0.55} />}
+        {!collectedRelics[0] && <WorldModel path={MODELS.relic1} position={spawnPositions.relics[0]} scale={0.95} fitSize={0.55} />}
+        {!collectedRelics[1] && <WorldModel path={MODELS.relic2} position={spawnPositions.relics[1]} scale={0.95} fitSize={0.55} />}
+        {!collectedRelics[2] && <WorldModel path={MODELS.relic3} position={spawnPositions.relics[2]} scale={0.95} fitSize={0.55} />}
+        {!collectedRelics[3] && <WorldModel path={MODELS.relic4} position={spawnPositions.relics[3]} scale={0.95} fitSize={0.55} />}
       </group>
 
       <group>
         {!swordPulled ? (
-          <WorldModel path={MODELS.swordStone} position={SWORD_STONE_POSITION} scale={1.2} fitSize={2.7} />
+          <WorldModel path={MODELS.swordStone} position={spawnPositions.swordStone} scale={1.2} fitSize={2.7} />
         ) : (
           <>
-            <WorldModel path={MODELS.stoneNoSword} position={SWORD_STONE_POSITION} scale={1.2} fitSize={2.7} />
-            <WorldModel path={MODELS.sword} position={[SWORD_STONE_POSITION[0] + 1.6, SWORD_STONE_POSITION[1] + 0.24, SWORD_STONE_POSITION[2] - 0.7]} rotation={[0, 0.35, 1.1]} scale={1.2} fitSize={1.8} />
-            <pointLight position={[SWORD_STONE_POSITION[0], SWORD_STONE_POSITION[1] + 2.1, SWORD_STONE_POSITION[2]]} intensity={2.4 + atmospherePulse * 0.8} distance={13} color="#e9ebff" />
+            <WorldModel path={MODELS.stoneNoSword} position={spawnPositions.swordStone} scale={1.2} fitSize={2.7} />
+            <WorldModel path={MODELS.sword} position={[spawnPositions.swordStone[0] + 1.6, spawnPositions.swordStone[1] + 0.24, spawnPositions.swordStone[2] - 0.7]} rotation={[0, 0.35, 1.1]} scale={1.2} fitSize={1.8} />
+            <pointLight position={[spawnPositions.swordStone[0], spawnPositions.swordStone[1] + 2.1, spawnPositions.swordStone[2]]} intensity={2.4 + atmospherePulse * 0.8} distance={13} color="#e9ebff" />
           </>
         )}
       </group>
 
       <group>
-        <WorldModel path={MODELS.stoneTablet} position={TABLET_POSITION} rotation={[0, 0.2, 0]} scale={1.05} fitSize={1.8} visible={hiddenClueVisible || tabletInspected} />
-        <WorldModel path={MODELS.statueFragment} position={[LOCATIONS.cave.x + 2.1, LOCATIONS.cave.y + 0.1, LOCATIONS.cave.z + 0.8]} scale={1.0} fitSize={1.5} />
-        <WorldModel path={MODELS.statueFace} position={[LOCATIONS.cave.x - 1.8, LOCATIONS.cave.y + 0.05, LOCATIONS.cave.z - 1.9]} rotation={[0, -0.6, 0]} scale={1.0} fitSize={1.5} />
-        <WorldModel path={MODELS.skull} position={[LOCATIONS.cave.x + 1.2, LOCATIONS.cave.y + 0.05, LOCATIONS.cave.z - 2.8]} scale={1.0} fitSize={0.85} />
-        {(hiddenClueVisible || tabletInspected) && <pointLight position={[TABLET_POSITION[0], TABLET_POSITION[1] + 1.2, TABLET_POSITION[2]]} intensity={1.5} distance={7} color="#b4e0ff" />}
+        <WorldModel path={MODELS.stoneTablet} position={spawnPositions.tablet} rotation={[0, 0.2, 0]} scale={1.05} fitSize={1.8} visible={hiddenClueVisible || tabletInspected} />
+        <WorldModel path={MODELS.statueFragment} position={[spawnPositions.cave[0] + 2.1, spawnPositions.cave[1] + 0.1, spawnPositions.cave[2] + 0.8]} scale={1.0} fitSize={1.5} />
+        <WorldModel path={MODELS.statueFace} position={[spawnPositions.cave[0] - 1.8, spawnPositions.cave[1] + 0.05, spawnPositions.cave[2] - 1.9]} rotation={[0, -0.6, 0]} scale={1.0} fitSize={1.5} />
+        <WorldModel path={MODELS.skull} position={[spawnPositions.cave[0] + 1.2, spawnPositions.cave[1] + 0.05, spawnPositions.cave[2] - 2.8]} scale={1.0} fitSize={0.85} />
+        {(hiddenClueVisible || tabletInspected) && <pointLight position={[spawnPositions.tablet[0], spawnPositions.tablet[1] + 1.2, spawnPositions.tablet[2]]} intensity={1.5} distance={7} color="#b4e0ff" />}
       </group>
 
       <group>
-        <WorldModel path={MODELS.chest} position={CHEST_POSITION} scale={1.05} fitSize={1.8} />
-        {chestOpened && <pointLight position={[CHEST_POSITION[0], CHEST_POSITION[1] + 0.8, CHEST_POSITION[2]]} intensity={1.45} distance={6} color="#ffd7aa" />}
-        <WorldModel path={MODELS.ghostShip} position={PORT_GHOST_SHIP_POSITION} rotation={[0, 0.75, 0]} scale={2.9} fitSize={7.5} />
-        <WorldModel path={MODELS.airship} position={PORT_AIRSHIP_POSITION} rotation={[0, -0.8, 0]} scale={2.6} fitSize={6.5} />
+        <WorldModel path={MODELS.chest} position={spawnPositions.chest} scale={1.05} fitSize={1.8} />
+        {chestOpened && <pointLight position={[spawnPositions.chest[0], spawnPositions.chest[1] + 0.8, spawnPositions.chest[2]]} intensity={1.45} distance={6} color="#ffd7aa" />}
+        <WorldModel path={MODELS.ghostShip} position={spawnPositions.portGhostShip} rotation={[0, 0.75, 0]} scale={2.9} fitSize={7.5} />
+        <WorldModel path={MODELS.airship} position={spawnPositions.portAirship} rotation={[0, -0.8, 0]} scale={2.6} fitSize={6.5} />
       </group>
 
       <group>
-        <WorldModel path={MODELS.statueFragment} position={[LOCATIONS.shoreline.x - 2.2, LOCATIONS.shoreline.y + 0.05, LOCATIONS.shoreline.z + 2.4]} scale={0.85} fitSize={1.4} />
-        <WorldModel path={MODELS.statueFace} position={[LOCATIONS.shoreline.x - 4.0, LOCATIONS.shoreline.y + 0.2, LOCATIONS.shoreline.z + 1.8]} rotation={[0, 1.2, 0]} scale={0.95} fitSize={1.4} />
-        <WorldModel path={MODELS.woodenTotem} position={[LOCATIONS.shoreline.x + 1.1, LOCATIONS.shoreline.y + 0.1, LOCATIONS.shoreline.z + 3.2]} rotation={[0, 0.5, 0]} scale={0.95} fitSize={1.8} />
-        <WorldModel path={MODELS.skull} position={[LOCATIONS.shoreline.x + 2.4, LOCATIONS.shoreline.y + 0.1, LOCATIONS.shoreline.z + 2.2]} scale={1.0} fitSize={0.9} />
-        <WorldModel path={MODELS.ghostShip} position={SHORE_GHOST_SHIP_POSITION} rotation={[0, 0.7, 0]} scale={2.6} fitSize={6.8} />
-        {totemCleansed && <pointLight position={[FOREST_TOTEM_POSITION[0], FOREST_TOTEM_POSITION[1] + 1.6, FOREST_TOTEM_POSITION[2]]} intensity={1.6} distance={8} color="#8ef0af" />}
+        <WorldModel path={MODELS.statueFragment} position={[spawnPositions.shoreline[0] - 2.2, spawnPositions.shoreline[1] + 0.05, spawnPositions.shoreline[2] + 2.4]} scale={0.85} fitSize={1.4} />
+        <WorldModel path={MODELS.statueFace} position={[spawnPositions.shoreline[0] - 4.0, spawnPositions.shoreline[1] + 0.2, spawnPositions.shoreline[2] + 1.8]} rotation={[0, 1.2, 0]} scale={0.95} fitSize={1.4} />
+        <WorldModel path={MODELS.woodenTotem} position={[spawnPositions.shoreline[0] + 1.1, spawnPositions.shoreline[1] + 0.1, spawnPositions.shoreline[2] + 3.2]} rotation={[0, 0.5, 0]} scale={0.95} fitSize={1.8} />
+        <WorldModel path={MODELS.skull} position={[spawnPositions.shoreline[0] + 2.4, spawnPositions.shoreline[1] + 0.1, spawnPositions.shoreline[2] + 2.2]} scale={1.0} fitSize={0.9} />
+        <WorldModel path={MODELS.ghostShip} position={spawnPositions.shoreGhostShip} rotation={[0, 0.7, 0]} scale={2.6} fitSize={6.8} />
+        {totemCleansed && <pointLight position={[spawnPositions.totem[0], spawnPositions.totem[1] + 1.6, spawnPositions.totem[2]]} intensity={1.6} distance={8} color="#8ef0af" />}
       </group>
 
-      {ritualFailFlash && <pointLight position={[LOCATIONS.ruins.x, LOCATIONS.ruins.y + 1.3, LOCATIONS.ruins.z]} intensity={3.2} distance={11} color="#8c6fff" />}
+      {ritualFailFlash && <pointLight position={[spawnPositions.ruins[0], spawnPositions.ruins[1] + 1.3, spawnPositions.ruins[2]]} intensity={3.2} distance={11} color="#8c6fff" />}
 
       {particleBursts.map((burst) => (
         <PulseBurst

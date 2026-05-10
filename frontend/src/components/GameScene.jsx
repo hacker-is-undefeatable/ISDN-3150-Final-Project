@@ -78,11 +78,11 @@ export default function GameScene({ avatarModelPath }) {
     <div className="game-shell">
       <Canvas
         camera={{ position: [0, 3, 8], fov: 60 }}
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
         onCreated={({ gl }) => {
           canvasRef.current = gl.domElement;
-          gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+          gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         }}
       >
         <color attach="background" args={["#101418"]} />

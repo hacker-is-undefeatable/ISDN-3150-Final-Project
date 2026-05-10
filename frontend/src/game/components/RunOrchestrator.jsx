@@ -48,7 +48,7 @@ export default function RunOrchestrator() {
         console.info("[Director] Event queued", director.nextEvent);
 
         if (!worldState.objectivesPreloaded && objectiveTargets.length < 5) {
-          const target = pickLocationTarget(director.nextEvent.location);
+          const target = pickLocationTarget(director.nextEvent.location, worldState.runSeed + objectiveTargets.length);
           if (target) {
             const exists = objectiveTargets.some(
               (existing) =>
@@ -67,7 +67,7 @@ export default function RunOrchestrator() {
         }
 
         if (!extractionAvailable && objectivesCompleted >= objectivesRequired) {
-          const extraction = pickExtractionTarget();
+          const extraction = pickExtractionTarget(worldState.runSeed);
           if (extraction) {
             setExtractionTarget(extraction);
             setExtractionAvailable(true);

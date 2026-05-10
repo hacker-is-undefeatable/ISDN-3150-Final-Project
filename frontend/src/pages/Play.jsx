@@ -13,6 +13,7 @@ export default function Play() {
   const objectiveTargets = useWorldStore((state) => state.world.objectiveTargets || []);
   const setObjectiveTargets = useWorldStore((state) => state.setObjectiveTargets);
   const patchWorld = useWorldStore((state) => state.patchWorld);
+  const runSeed = useWorldStore((state) => state.world.runSeed || 0);
 
   const scene = location.state?.scene || "dungeon";
   const selectedCharacter = location.state?.character || null;
@@ -59,7 +60,7 @@ export default function Play() {
 
     while (nextTargets.length < preloadCount && safety < 200) {
       const key = locationKeys[nextTargets.length % locationKeys.length];
-      const target = pickLocationTarget(key);
+      const target = pickLocationTarget(key, runSeed + nextTargets.length);
       if (target?.position) {
         const sig = `${target.location}:${target.position.x},${target.position.y},${target.position.z}`;
         if (!seen.has(sig)) {

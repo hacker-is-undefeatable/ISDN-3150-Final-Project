@@ -68,13 +68,22 @@ export function resolveLocationKey(raw) {
   return normalized.replace(/\s+/g, "_");
 }
 
-export function pickLocationTarget(locationKey) {
+function createSeededRandom(seed) {
+  let state = Number.isFinite(seed) ? seed : Date.now();
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+export function pickLocationTarget(locationKey, seed) {
   const key = resolveLocationKey(locationKey);
   if (!key || !LOCATION_TARGETS[key]) {
     return null;
   }
   const pool = LOCATION_TARGETS[key];
-  const choice = pool[Math.floor(Math.random() * pool.length)];
+  const random = createSeededRandom(seed);
+  const choice = pool[Math.floor(random() * pool.length)];
   return { location: key, position: choice };
 }
 
