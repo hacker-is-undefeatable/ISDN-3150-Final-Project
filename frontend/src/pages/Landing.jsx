@@ -10,14 +10,15 @@ export default function Landing() {
         <span className="landing-shell__orb landing-shell__orb--one" />
         <span className="landing-shell__orb landing-shell__orb--two" />
         <span className="landing-shell__grid" />
+        <div className="landing-shell__scanlines" />
       </div>
 
       <header className="landing-nav">
         <div className="landing-brand">
           <span className="landing-brand__mark" />
           <div>
-            <p>AI Escape Room</p>
-            <span>3D puzzle adventure</span>
+            <p>TEMPLE ESCAPE</p>
+            <span>3D AI Puzzle Adventure</span>
           </div>
         </div>
         <div className="landing-nav__actions">
@@ -32,35 +33,35 @@ export default function Landing() {
 
       <section className="landing-hero">
         <div className="landing-hero__content">
-          <p className="eyebrow">Interactive learning meets escape-room gameplay</p>
-          <h1>AI Escape Room</h1>
+          <p className="eyebrow">◆ ESCAPE ROOM PROTOCOL INITIATED</p>
+          <h1>Enter The Temple</h1>
           <p className="landing-copy">
-            Step into a dark, atmospheric puzzle world where every checkpoint turns
-            learning into exploration. Solve the room, unlock the path, and keep your
-            progress synced through Supabase.
+            A dark, atmospheric puzzle world awaits. Explore ancient ruins, solve cryptic 
+            challenges, unlock hidden passages, and race against time to escape. Every decision 
+            matters. Your progress persists across sessions.
           </p>
 
           <div className="landing-hero__actions">
             <Link className="primary-button" to="/login">
-              Start Game
+              ▶ START ADVENTURE
             </Link>
             <Link className="secondary-button" to="/register">
-              Create Account
+              ◇ CREATE ACCOUNT
             </Link>
           </div>
 
           <div className="landing-metrics">
             <article>
-              <strong>Secure</strong>
-              <span>Email and password login</span>
+              <strong>SECURE</strong>
+              <span>Encrypted authentication</span>
             </article>
             <article>
-              <strong>Persistent</strong>
-              <span>Session survives refresh</span>
+              <strong>PERSISTENT</strong>
+              <span>State saved instantly</span>
             </article>
             <article>
-              <strong>Immersive</strong>
-              <span>3D world with puzzle loop</span>
+              <strong>IMMERSIVE</strong>
+              <span>Full 3D exploration</span>
             </article>
           </div>
         </div>
@@ -69,15 +70,15 @@ export default function Landing() {
           <div className="landing-preview__panel">
             <div className="landing-preview__header">
               <span className="status-dot" />
-              <span>{isAuthenticated ? "Ready to continue" : "Awaiting login"}</span>
+              <span>{isAuthenticated ? "▪ READY" : "⊙ AWAITING ACCESS"}</span>
             </div>
             <video className="landing-preview__scene" autoPlay muted loop>
               <source src="/demo.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
             <p>
-              Explore the temple, trigger puzzles near glowing spots, and escape with
-              the room state preserved across your session.
+              Uncover secrets, trigger ancient mechanisms, and piece together the puzzle. 
+              Your temple exploration progress is automatically preserved.
             </p>
           </div>
         </aside>
