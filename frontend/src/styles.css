@@ -556,6 +556,11 @@ a {
   background-size: contain;
 }
 
+/* When shards are fully collected/unlocked, remove spacing by using cover so pieces meet exactly */
+.card-shard--detail.card-shard--unlocked .card-shard__piece {
+  background-size: cover;
+}
+
 .card-shard__piece--missing {
   filter: grayscale(1) saturate(0.2) brightness(0.5);
   opacity: 0.35;

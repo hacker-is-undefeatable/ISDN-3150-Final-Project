@@ -33,6 +33,7 @@ const JUMP_VELOCITY = 6.2;
 const MAX_FALL_SPEED = 20;
 const JUMP_BUFFER_TIME = 0.12;
 const POSITION_REPORT_INTERVAL = 0.2;
+const FOOTSTEP_PLAYBACK_RATE = 2.0;
 
 function disableVrmOutlines(vrm) {
   if (!vrm?.scene) return;
@@ -303,6 +304,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
   const verticalVelocityRef = useRef(0);
   const isGroundedRef = useRef(true);
   const jumpBufferTimerRef = useRef(0);
+  const footAudioRef = useRef(null);
 
   const draggingRef = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
@@ -546,6 +548,23 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
     });
   }, [onPositionChange]);
 
+  // setup footstep audio for walking
+  useEffect(() => {
+    const audio = new Audio('/sound/footstep.wav');
+    audio.loop = true;
+    audio.volume = 0.12;
+    audio.playbackRate = FOOTSTEP_PLAYBACK_RATE;
+    footAudioRef.current = audio;
+
+    return () => {
+      try {
+        audio.pause();
+        audio.src = '';
+      } catch (e) {}
+      footAudioRef.current = null;
+    };
+  }, []);
+
   /* -------- MAIN LOOP -------- */
 
   useFrame((_, delta) => {
@@ -731,6 +750,22 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
 
     camera.position.lerp(camPos, delta * 6);
     camera.lookAt(lookAt);
+
+    // play footstep audio when moving on ground
+    try {
+      const audio = footAudioRef.current;
+      if (audio) {
+        const moving = moveAmountRef.current > 0.01 && isGroundedRef.current;
+        if (moving) {
+          if (audio.paused) audio.play().catch(() => {});
+        } else {
+          if (!audio.paused) {
+            audio.pause();
+            try { audio.currentTime = 0; } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
   });
 
   return (

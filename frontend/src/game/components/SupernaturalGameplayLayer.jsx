@@ -8,6 +8,7 @@ import { requestInteractionDecision } from "../ai/interactionApi";
 import { buildStoryObjective } from "../data/storyObjectives";
 import { shouldIgnoreGameplayKey } from "../lib/inputGuards";
 import { useWorldStore } from "../state/worldStore";
+import { useNpcStore } from "../state/npcStore";
 
 const MODEL_ROOT = "/model/3d_asset";
 const MODELS = {
@@ -213,6 +214,8 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange, t
   const [ritualIntensity, setRitualIntensity] = useState(0);
   const [particleBursts, setParticleBursts] = useState([]);
   const [nearestInteraction, setNearestInteraction] = useState(null);
+  const appendDialogue = useNpcStore((state) => state.appendDialogue);
+  const setActiveNpc = useNpcStore((state) => state.setActiveNpc);
   const ghostShipColliderFrontRef = useRef(null);
   const ghostShipColliderBackRef = useRef(null);
   const ghostShipColliderLeftRef = useRef(null);
@@ -481,6 +484,31 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange, t
 
     setNearestInteraction(nearest);
   }, [interactions, playerCoords]);
+
+  // encourage player when they reach 2 lit candles or 2 collected relics
+  const prevLitCountRef = useRef(0);
+  useEffect(() => {
+    const count = (litCandles || []).filter(Boolean).length;
+    if (prevLitCountRef.current < 2 && count >= 2) {
+      try {
+        appendDialogue("guide", { text: "Nice work — you've lit two candles! Keep it up.", timestamp: new Date().toISOString(), from: "npc" });
+        setActiveNpc("guide");
+      } catch (e) {}
+    }
+    prevLitCountRef.current = count;
+  }, [litCandles, appendDialogue, setActiveNpc]);
+
+  const prevRelicCountRef = useRef(0);
+  useEffect(() => {
+    const count = (collectedRelics || []).filter(Boolean).length;
+    if (prevRelicCountRef.current < 2 && count >= 2) {
+      try {
+        appendDialogue("guide", { text: "Good job — you've recovered two relic fragments! You're making progress.", timestamp: new Date().toISOString(), from: "npc" });
+        setActiveNpc("guide");
+      } catch (e) {}
+    }
+    prevRelicCountRef.current = count;
+  }, [collectedRelics, appendDialogue, setActiveNpc]);
 
   const handleInteraction = useCallback(async () => {
     if (!nearestInteraction) return;

@@ -75,7 +75,9 @@ export default function NPCModel({ modelPath }) {
         if (!vrm) return;
 
         // align scale/rotation/position similar to the character preview
-        vrm.scene.scale.setScalar(1.1);
+        const baseScale = 1.1;
+        const isZhongli = typeof modelPath === "string" && modelPath.includes("model_zhongli.vrm");
+        vrm.scene.scale.setScalar(isZhongli ? baseScale / 3 : baseScale);
         vrm.scene.rotation.set(0, 0, 0);
         const isDefaultModel = typeof modelPath === "string" && modelPath.includes("model00000.vrm");
         vrm.scene.rotation.y = isDefaultModel ? 0 : Math.PI;
