@@ -243,15 +243,16 @@ export default function Game() {
 
       <main className="lobby-main">
         {selectedTab === "Play" && (
-          <section className="lobby-section">
-            <h2 className="lobby-heading">Choose Your Scene</h2>
+          <section className="lobby-section play-section">
+            <div className="play-section__header">
+              <h2 className="lobby-heading">Choose Your Scene</h2>
+              <p className="play-section__subtitle">Select an adventure and prepare yourself for what lies ahead</p>
+            </div>
             <SceneSelector selectedScene={selectedScene} onSelect={setSelectedScene} />
 
-            <div style={{ marginTop: 18 }}>
-              <button onClick={handleEnter} disabled={!selectedScene} className="enter-button">
-                ENTER ESCAPE ROOM
-              </button>
-            </div>
+            <button onClick={handleEnter} disabled={!selectedScene} className="enter-button">
+              ENTER ESCAPE ROOM
+            </button>
           </section>
         )}
 

@@ -85,9 +85,9 @@ export default function Play() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      <div className="p-4">
-        <button className="px-3 py-1 bg-gray-800 rounded" onClick={() => navigate(-1)}>
-          Back to Lobby
+      <div className="game-topbar">
+        <button className="back-to-lobby-btn" onClick={() => navigate(-1)}>
+          ← Back to Lobby
         </button>
       </div>
       {objectivesReady ? (
