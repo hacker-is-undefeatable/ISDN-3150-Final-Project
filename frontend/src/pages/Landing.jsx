@@ -71,12 +71,10 @@ export default function Landing() {
               <span className="status-dot" />
               <span>{isAuthenticated ? "Ready to continue" : "Awaiting login"}</span>
             </div>
-            <div className="landing-preview__scene">
-              <div className="landing-preview__tower landing-preview__tower--tall" />
-              <div className="landing-preview__tower landing-preview__tower--mid" />
-              <div className="landing-preview__tower landing-preview__tower--short" />
-              <div className="landing-preview__beam" />
-            </div>
+            <video className="landing-preview__scene" autoPlay muted loop>
+              <source src="/demo.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
             <p>
               Explore the temple, trigger puzzles near glowing spots, and escape with
               the room state preserved across your session.

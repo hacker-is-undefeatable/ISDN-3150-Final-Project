@@ -385,7 +385,7 @@ a {
 }
 
 .landing-preview__panel {
-  width: min(100%, 420px);
+  width: min(100%, 640px);
   border-radius: 28px;
   padding: 22px;
   overflow: hidden;
@@ -556,11 +556,6 @@ a {
   background-size: contain;
 }
 
-/* When shards are fully collected/unlocked, remove spacing by using cover so pieces meet exactly */
-.card-shard--detail.card-shard--unlocked .card-shard__piece {
-  background-size: cover;
-}
-
 .card-shard__piece--missing {
   filter: grayscale(1) saturate(0.2) brightness(0.5);
   opacity: 0.35;
@@ -722,15 +717,14 @@ a {
 
 .landing-preview__scene {
   position: relative;
-  height: 280px;
+  width: 100%;
+  height: 420px;
   margin-bottom: 18px;
   border-radius: 24px;
   border: 1px solid rgba(115, 208, 255, 0.14);
-  background:
-    radial-gradient(circle at 50% 25%, rgba(115, 208, 255, 0.24), transparent 34%),
-    radial-gradient(circle at 25% 70%, rgba(155, 255, 207, 0.18), transparent 28%),
-    linear-gradient(180deg, rgba(8, 13, 28, 0.4), rgba(4, 7, 16, 0.9));
   overflow: hidden;
+  object-fit: cover;
+  display: block;
 }
 
 .landing-preview__scene::after {
