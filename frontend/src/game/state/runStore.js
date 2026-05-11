@@ -43,6 +43,20 @@ export const useRunStore = create((set) => ({
   completeRun: (result) =>
     set((state) => ({ phase: "complete", result, runEndTime: Date.now() })),
   setReward: (reward) => set({ reward }),
+  resetRun: () =>
+    set({
+      runId: null,
+      runSeed: null,
+      phase: "idle",
+      runStartTime: null,
+      runEndTime: null,
+      objectivesCompleted: 0,
+      objectives: [],
+      extractionAvailable: false,
+      result: null,
+      reward: null,
+      history: []
+    }),
   logEvent: (event) =>
     set((state) => ({ history: [...state.history, event] }))
 }));

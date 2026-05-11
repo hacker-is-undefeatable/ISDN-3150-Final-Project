@@ -96,28 +96,50 @@ export default function UI({
     : Number.isFinite(playerCoords?.yaw)
     ? playerCoords.yaw
     : 0;
-  const fovRotationDeg = 180 - (yawRad * 180) / Math.PI;
+  const yawDeg = ((yawRad * 180) / Math.PI + 360) % 360;
+  const fovRotationDeg = 180 - yawDeg;
+  const compassRotationDeg = -yawDeg;
+
+  const headingLabel = (() => {
+    const normalized = yawDeg % 360;
+    if (normalized >= 337.5 || normalized < 22.5) return "N";
+    if (normalized < 67.5) return "NE";
+    if (normalized < 112.5) return "E";
+    if (normalized < 157.5) return "SE";
+    if (normalized < 202.5) return "S";
+    if (normalized < 247.5) return "SW";
+    if (normalized < 292.5) return "W";
+    return "NW";
+  })();
   return (
     <>
       <div className="ui-panel">
-        <h1>Island Expedition</h1>
         <div className="mode-row">
           <span>
             <strong>Mode:</strong> {cameraMode === "first-person" ? "First Person" : "Third Person"}
+            <strong>Weather: {hudState?.weather || "unknown"}</strong>
           </span>
           <button className="mode-button" onClick={onToggleCameraMode}>
             Switch Mode
           </button>
+
         </div>
-        <p className="controls-tip">Move with WASD or arrow keys. Explore freely.</p>
-        {hudState?.objectiveText && <p className="objective-hud">{hudState.objectiveText}</p>}
-        <div className="status-row">
-          <span className="status-badge">Corruption: {Math.round(hudState?.corruption || 0)}</span>
-          <span className="status-badge">Weather: {hudState?.weather || "unknown"}</span>
-          <span className="status-badge">Ritual: {Math.round((hudState?.ritualIntensity || 0) * 100)}%</span>
-          <span className={`status-badge ${hudState?.extractionReady ? "status-badge--ready" : ""}`}>
-            Extraction: {hudState?.extractionReady ? "Unlocked" : "Locked"}
-          </span>
+
+        <div className="compass-hud" aria-label="Compass" style={{ marginTop: -120 , marginRight: 100}}>
+          <div className="minimap-title">Compass</div>
+          <div className="compass-ring">
+            <div className="compass-rose" style={{ transform: `rotate(${compassRotationDeg}deg)` }}>
+              <span className="compass-dir compass-dir--north">N</span>
+              <span className="compass-dir compass-dir--east">E</span>
+              <span className="compass-dir compass-dir--south">S</span>
+              <span className="compass-dir compass-dir--west">W</span>
+              <div className="compass-needle" />
+            </div>
+          </div>
+          <div className="compass-heading">{headingLabel} · {Math.round(yawDeg)}°</div>
+          {hudState?.directionHint && (
+            <div className="direction-hint">{hudState.directionHint.cardinal} · {hudState.directionHint.degrees}°</div>
+          )}
         </div>
       </div>
 
@@ -143,12 +165,26 @@ export default function UI({
         </div>
       </div>
 
+      {/* Direction hint overlay (from world state via hudState) */}
+      {hudState?.directionHint && (
+        <div className="direction-overlay">
+          <div className="direction-overlay__label">Direction</div>
+          <div className="direction-overlay__value">{hudState.directionHint.cardinal} · {hudState.directionHint.degrees}°</div>
+        </div>
+      )}
+
       <div className="coords-hud" aria-live="polite">
         <span className="coords-label">Position</span>
         <span className="coords-value">
           X: {formatCoord(playerCoords?.x)} Y: {formatCoord(playerCoords?.y)} Z: {formatCoord(playerCoords?.z)}
         </span>
       </div>
+      <style>{`
+        .direction-overlay{position:fixed;right:18px;top:180px;background:rgba(0,0,0,0.5);padding:8px 12px;border-radius:6px;color:#fff;font-weight:600}
+        .direction-overlay__label{font-size:11px;opacity:0.8}
+        .direction-overlay__value{font-size:18px;margin-top:4px}
+        .direction-hint{font-size:12px;margin-top:6px;color:#ffd166}
+      `}</style>
     </>
   );
 }

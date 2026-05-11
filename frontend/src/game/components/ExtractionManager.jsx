@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWorldStore } from "../state/worldStore";
 import { useRunStore } from "../state/runStore";
+import { shouldIgnoreGameplayKey } from "../lib/inputGuards";
 
 const EXTRACTION_RADIUS = 4.5;
 
 export default function ExtractionManager({ playerCoords }) {
   const extractionTarget = useWorldStore((state) => state.world.extractionTarget);
   const setExtractionTarget = useWorldStore((state) => state.setExtractionTarget);
+  const setDirectionHint = useWorldStore((state) => state.setDirectionHint);
   const extractionAvailable = useRunStore((state) => state.extractionAvailable);
   const completeRun = useRunStore((state) => state.completeRun);
 
@@ -30,12 +32,19 @@ export default function ExtractionManager({ playerCoords }) {
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (shouldIgnoreGameplayKey(event)) return;
       if (event.repeat) return;
       if (event.key.toLowerCase() !== "e") return;
       if (!promptVisible) return;
       event.preventDefault();
       completeRun("win");
       setExtractionTarget(null);
+      // clear any direction hint once extraction begins
+      try {
+        setDirectionHint(null);
+      } catch (e) {
+        // ignore
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);

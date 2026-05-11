@@ -74,9 +74,46 @@ export default function NPCModel({ modelPath }) {
         const vrm = gltf.userData.vrm;
         if (!vrm) return;
 
-        vrm.scene.scale.setScalar(1.3);
-        vrm.scene.rotation.set(0, Math.PI, 0);
+        // align scale/rotation/position similar to the character preview
+        vrm.scene.scale.setScalar(1.1);
+        vrm.scene.rotation.set(0, 0, 0);
+        const isDefaultModel = typeof modelPath === "string" && modelPath.includes("model00000.vrm");
+        vrm.scene.rotation.y = isDefaultModel ? 0 : Math.PI;
+        // raise character to match preview (moved up by +2)
         vrm.scene.position.set(0, 0, 0);
+
+        // use humanoid bone API to set a relaxed arm pose (matches ModelPreview)
+        try {
+          const armRestZ = isDefaultModel ? 1.1 : -1.3;
+          const armLift = isDefaultModel ? 1 : 0.12;
+
+          const get = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
+
+          const leftUpper = get("leftUpperArm");
+          const rightUpper = get("rightUpperArm");
+          const leftLower = get("leftLowerArm");
+          const rightLower = get("rightLowerArm");
+
+          if (leftUpper) {
+            const e = new THREE.Euler(-0.05 * armLift, 0, -armRestZ);
+            leftUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+          }
+          if (rightUpper) {
+            const e = new THREE.Euler(-0.05 * armLift, 0, armRestZ);
+            rightUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+          }
+
+          if (leftLower) {
+            const e = new THREE.Euler(0, 0.15, 0);
+            leftLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+          }
+          if (rightLower) {
+            const e = new THREE.Euler(0, -0.15, 0);
+            rightLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+          }
+        } catch (e) {
+          // non-fatal: continue if humanoid API isn't available
+        }
 
         disableVrmOutlines(vrm);
 
@@ -119,6 +156,17 @@ export default function NPCModel({ modelPath }) {
       } catch (error) {
         // ignore VRM update errors
       }
+    }
+
+    // subtle idle sway/breath to make NPCs feel more natural
+    try {
+      if (group.current) {
+        const t = performance.now() / 1000;
+        group.current.rotation.y = Math.sin(t * 0.6) * 0.06;
+        group.current.position.y = Math.sin(t * 1.1) * 0.02;
+      }
+    } catch (e) {
+      // ignore idle errors
     }
   });
 

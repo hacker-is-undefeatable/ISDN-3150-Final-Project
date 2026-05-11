@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { requestDirectorUpdate } from "../ai/directorApi";
 import { requestDynamicEvent } from "../ai/eventApi";
 import { requestInteractionDecision } from "../ai/interactionApi";
+import { buildStoryObjective } from "../data/storyObjectives";
+import { shouldIgnoreGameplayKey } from "../lib/inputGuards";
 import { useWorldStore } from "../state/worldStore";
 
 const MODEL_ROOT = "/model/3d_asset";
@@ -61,9 +63,8 @@ const FOREST_LANTERN_POSITION = [-27.1, 26.05, -18.9];
 const TABLET_POSITION = [-2.7, 11.3, 9.5];
 const CHEST_POSITION = [59.4, 12.2, -90.8];
 const SWORD_STONE_POSITION = [40.8, 23.1, 6.8];
-const PORT_GHOST_SHIP_POSITION = [66.8, 10.2, -46.8];
+const PORT_GHOST_SHIP_POSITION = [76.51, 9.22, -39.34];
 const PORT_AIRSHIP_POSITION = [68.8, 29.1, -104.4];
-const SHORE_GHOST_SHIP_POSITION = [63.8, 10.4, -38.8];
 
 function distance3D(a, b) {
   const dx = a.x - b.x;
@@ -80,7 +81,14 @@ function mapWeatherId(rawWeather) {
 }
 
 function clonePosition([x, y, z]) {
-  return { x, y, z };
+  if (Array.isArray(arguments[0])) {
+    return { x, y, z };
+  }
+  const arg = arguments[0];
+  if (arg && typeof arg === "object") {
+    return { x: Number(arg.x) || 0, y: Number(arg.y) || 0, z: Number(arg.z) || 0 };
+  }
+  return { x: 0, y: 0, z: 0 };
 }
 
 function createSeededRandom(seed) {
@@ -150,12 +158,44 @@ function PulseBurst({ burst }) {
   );
 }
 
-export default function SupernaturalGameplayLayer({ playerCoords, onHudChange }) {
+function useRegisterCollider(ref, terrainCollidersRef) {
+  useEffect(() => {
+    const mesh = ref.current;
+    const colliders = terrainCollidersRef?.current;
+    if (!mesh || !colliders) return undefined;
+
+    const currentWalls = Array.isArray(colliders.walls) ? colliders.walls : [];
+    const currentAlwaysBlockNames = Array.isArray(colliders.alwaysBlockNames)
+      ? colliders.alwaysBlockNames
+      : [];
+
+    if (!currentWalls.includes(mesh)) {
+      colliders.walls = [...currentWalls, mesh];
+    }
+
+    const meshName = String(mesh.name || "").toLowerCase();
+    if (meshName && !currentAlwaysBlockNames.includes(meshName)) {
+      colliders.alwaysBlockNames = [...currentAlwaysBlockNames, meshName];
+    }
+
+    return () => {
+      const nextWalls = (Array.isArray(colliders.walls) ? colliders.walls : []).filter((item) => item !== mesh);
+      const nextBlockNames = (Array.isArray(colliders.alwaysBlockNames) ? colliders.alwaysBlockNames : []).filter(
+        (name) => name !== meshName
+      );
+      colliders.walls = nextWalls;
+      colliders.alwaysBlockNames = nextBlockNames;
+    };
+  }, [ref, terrainCollidersRef]);
+}
+
+export default function SupernaturalGameplayLayer({ playerCoords, onHudChange, terrainCollidersRef }) {
   const world = useWorldStore((state) => state.world);
   const patchWorld = useWorldStore((state) => state.patchWorld);
   const addActiveEvent = useWorldStore((state) => state.addActiveEvent);
   const setExtractionTarget = useWorldStore((state) => state.setExtractionTarget);
 
+  const objectivePlan = useMemo(() => buildStoryObjective(world.runSeed || 0), [world.runSeed]);
   const [litCandles, setLitCandles] = useState([false, false, false, false]);
   const [inputSequence, setInputSequence] = useState([]);
   const [ritualCompleted, setRitualCompleted] = useState(false);
@@ -167,11 +207,16 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   const [chestOpened, setChestOpened] = useState(false);
   const [totemCleansed, setTotemCleansed] = useState(false);
   const [hiddenClueVisible, setHiddenClueVisible] = useState(false);
-  const [objectiveText, setObjectiveText] = useState("Light the ritual candles in the Ruins.");
+  const [objectiveComplete, setObjectiveComplete] = useState(false);
+  const [objectiveText, setObjectiveText] = useState("Speak to the guide for your first clue.");
   const [atmospherePulse, setAtmospherePulse] = useState(0);
   const [ritualIntensity, setRitualIntensity] = useState(0);
   const [particleBursts, setParticleBursts] = useState([]);
   const [nearestInteraction, setNearestInteraction] = useState(null);
+  const ghostShipColliderFrontRef = useRef(null);
+  const ghostShipColliderBackRef = useRef(null);
+  const ghostShipColliderLeftRef = useRef(null);
+  const ghostShipColliderRightRef = useRef(null);
 
   const recentEventsRef = useRef([]);
   const bootstrappedRef = useRef(false);
@@ -184,6 +229,11 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   const footstepAudioRef = useRef(null);
   const runSeed = Number(world.runSeed) || 0;
 
+  useRegisterCollider(ghostShipColliderFrontRef, terrainCollidersRef);
+  useRegisterCollider(ghostShipColliderBackRef, terrainCollidersRef);
+  useRegisterCollider(ghostShipColliderLeftRef, terrainCollidersRef);
+  useRegisterCollider(ghostShipColliderRightRef, terrainCollidersRef);
+
   const spawnPositions = useMemo(() => {
     const makeRandom = (salt) => createSeededRandom(runSeed + salt);
 
@@ -195,7 +245,16 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
       bridge: jitterPosition([LOCATIONS.bridge.x, LOCATIONS.bridge.y, LOCATIONS.bridge.z], makeRandom(5), 1.4),
       forest: jitterPosition([LOCATIONS.forest.x, LOCATIONS.forest.y, LOCATIONS.forest.z], makeRandom(6), 1.1),
       candles: CANDLE_POSITIONS.map((position, index) => jitterPosition(position, makeRandom(20 + index), 0.7)),
-      relics: RELIC_POSITIONS.map((position, index) => jitterPosition(position, makeRandom(40 + index), 0.7)),
+      relics: (function () {
+        try {
+          if (objectivePlan && objectivePlan.type === "recover_relics" && Array.isArray(objectivePlan.positions) && objectivePlan.positions.length) {
+            return objectivePlan.positions.map((position, index) => jitterPosition(position, makeRandom(40 + index), 0.7));
+          }
+        } catch (e) {
+          // fall through to default
+        }
+        return RELIC_POSITIONS.map((position, index) => jitterPosition(position, makeRandom(40 + index), 0.7));
+      })(),
       totem: jitterPosition(FOREST_TOTEM_POSITION, makeRandom(60), 0.9),
       skull: jitterPosition(FOREST_SKULL_POSITION, makeRandom(61), 0.7),
       lantern: jitterPosition(FOREST_LANTERN_POSITION, makeRandom(62), 0.8),
@@ -203,10 +262,9 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
       chest: jitterPosition(CHEST_POSITION, makeRandom(64), 1.0),
       swordStone: jitterPosition(SWORD_STONE_POSITION, makeRandom(65), 1.0),
       portGhostShip: jitterPosition(PORT_GHOST_SHIP_POSITION, makeRandom(66), 1.5),
-      portAirship: jitterPosition(PORT_AIRSHIP_POSITION, makeRandom(67), 1.8),
-      shoreGhostShip: jitterPosition(SHORE_GHOST_SHIP_POSITION, makeRandom(68), 1.5)
+      portAirship: jitterPosition(PORT_AIRSHIP_POSITION, makeRandom(67), 1.8)
     };
-  }, [runSeed]);
+  }, [runSeed, objectivePlan]);
 
   const spawnBurst = useCallback((position, color = "#ffd27d") => {
     burstIdRef.current += 1;
@@ -220,7 +278,8 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
         corruption: world.corruption,
         weather: world.weather,
         ritualIntensity,
-        extractionReady: Boolean(world.extractionTarget)
+        extractionReady: Boolean(world.extractionTarget),
+        directionHint: world.directionHint || null
       });
     }
   }, [objectiveText, onHudChange, ritualIntensity, world.corruption, world.extractionTarget, world.weather]);
@@ -264,10 +323,11 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   }, []);
 
   useEffect(() => {
-    if (bootstrappedRef.current) return;
+    if (bootstrappedRef.current || !world.storyObjective) return;
     bootstrappedRef.current = true;
 
     patchWorld({ weather: "cloudy", corruption: 0, dangerLevel: 0, ritualIntensity: 0, supernaturalPulse: 0 });
+    setObjectiveText(world.storyObjective.hint || objectivePlan.hint || "Speak to the guide for your first clue.");
 
     requestDirectorUpdate(world, [], [])
       .then((director) => {
@@ -276,13 +336,12 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
           corruption: Math.max(0, (world.corruption || 0) + (director?.adjustments?.corruptionDelta || 0)),
           dangerLevel: Math.max(0, (world.dangerLevel || 0) + (director?.adjustments?.dangerDelta || 0))
         });
-        if (director?.objective?.description) setObjectiveText(director.objective.description);
         if (director?.nextEvent?.spawnEvent) {
           addActiveEvent({ id: director.nextEvent.spawnEvent, location: director.nextEvent.location || "ruins", startedAt: new Date().toISOString() });
         }
       })
       .catch(() => {});
-  }, [addActiveEvent, patchWorld, world]);
+  }, [addActiveEvent, objectivePlan.hint, patchWorld, world, world.storyObjective]);
 
   useFrame((_, delta) => {
     setParticleBursts((prev) => {
@@ -367,40 +426,41 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   const interactions = useMemo(() => {
     const list = [];
 
-    spawnPositions.candles.forEach((position, candleIndex) => {
-      if (!litCandles[candleIndex]) {
-        list.push({ id: `candle_${candleIndex}`, prompt: "Press E to light candle", position: clonePosition(position), radius: 2.4 });
+    if (objectiveComplete) {
+      return list;
+    }
+
+    if (objectivePlan.type === "repair_lantern") {
+      if (!lanternRepaired && objectivePlan.positions[0]) {
+        list.push({
+          id: "repair_lantern",
+          prompt: "Press E to repair lantern",
+          position: clonePosition(objectivePlan.positions[0]),
+          radius: 2.8
+        });
       }
-    });
-
-    spawnPositions.relics.forEach((position, relicIndex) => {
-      if (!collectedRelics[relicIndex]) {
-        list.push({ id: `relic_${relicIndex}`, prompt: "Press E to recover relic fragment", position: clonePosition(position), radius: 2.4 });
-      }
-    });
-
-    if (collectedRelics.every(Boolean) && !lanternRepaired) {
-      list.push({ id: "repair_lantern", prompt: "Press E to repair lantern", position: clonePosition(spawnPositions.lantern), radius: 2.8 });
+      return list;
     }
 
-    if (!swordPulled && ritualCompleted && lanternRepaired) {
-      list.push({ id: "pull_sword", prompt: "Press E to pull sword", position: clonePosition(spawnPositions.swordStone), radius: 3.0 });
+    if (objectivePlan.type === "light_candles") {
+      objectivePlan.positions.forEach((position, candleIndex) => {
+        if (!litCandles[candleIndex]) {
+          list.push({ id: `candle_${candleIndex}`, prompt: "Press E to light candle", position: clonePosition(position), radius: 2.4 });
+        }
+      });
+      return list;
     }
 
-    if (!tabletInspected && hiddenClueVisible) {
-      list.push({ id: "inspect_tablet", prompt: "Press E to inspect tablet", position: clonePosition(spawnPositions.tablet), radius: 2.8 });
-    }
-
-    if (!chestOpened) {
-      list.push({ id: "open_chest", prompt: "Press E to open chest", position: clonePosition(spawnPositions.chest), radius: 2.9 });
-    }
-
-    if (!totemCleansed) {
-      list.push({ id: "cleanse_totem", prompt: "Press E to cleanse totem", position: clonePosition(spawnPositions.totem), radius: 2.8 });
+    if (objectivePlan.type === "recover_relics") {
+      objectivePlan.positions.forEach((position, relicIndex) => {
+        if (!collectedRelics[relicIndex]) {
+          list.push({ id: `relic_${relicIndex}`, prompt: "Press E to recover relic fragment", position: clonePosition(position), radius: 2.4 });
+        }
+      });
     }
 
     return list;
-  }, [chestOpened, collectedRelics, hiddenClueVisible, lanternRepaired, litCandles, ritualCompleted, swordPulled, tabletInspected, totemCleansed]);
+  }, [collectedRelics, lanternRepaired, litCandles, objectiveComplete, objectivePlan.positions, objectivePlan.type]);
 
   useEffect(() => {
     if (!playerCoords || !interactions.length) {
@@ -425,6 +485,70 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   const handleInteraction = useCallback(async () => {
     if (!nearestInteraction) return;
     startAmbientAudio();
+
+    if (objectivePlan.type === "repair_lantern" && nearestInteraction.id === "repair_lantern") {
+      setLanternRepaired(true);
+      setObjectiveComplete(true);
+      setAtmospherePulse((prev) => Math.min(2, prev + 0.35));
+      setObjectiveText(`The lantern is repaired in the ${objectivePlan.locationLabel}. Speak to the guide to learn your escape.`);
+      spawnBurst(objectivePlan.positions[0], "#fce8a5");
+      patchWorld({
+        awaitingNpcGuidance: true,
+        extractionOptions: [
+          { id: "ghost_ship", label: "Ghost Ship", location: "port", position: { x: spawnPositions.portGhostShip[0], y: spawnPositions.portGhostShip[1], z: spawnPositions.portGhostShip[2] } },
+          { id: "port", label: "Port", location: "port", position: { x: spawnPositions.port[0], y: spawnPositions.port[1], z: spawnPositions.port[2] } }
+        ]
+      });
+      return;
+    }
+
+    if (objectivePlan.type === "light_candles" && nearestInteraction.id.startsWith("candle_")) {
+      const candleIndex = Number(nearestInteraction.id.replace("candle_", ""));
+      const nextLit = [...litCandles];
+      nextLit[candleIndex] = true;
+      setLitCandles(nextLit);
+      spawnBurst(objectivePlan.positions[candleIndex], "#ffbf78");
+
+      if (nextLit.every(Boolean)) {
+        setObjectiveComplete(true);
+        setAtmospherePulse((prev) => Math.min(2, prev + 0.5));
+        setObjectiveText(`The candle ritual is complete in the ${objectivePlan.locationLabel}. Speak to the guide to learn your escape.`);
+        patchWorld({
+          corruption: Math.max(0, (world.corruption || 0) - 2),
+          ritualIntensity: Math.min(2, (world.ritualIntensity || 0) + 0.2),
+          weather: "mist",
+          awaitingNpcGuidance: true,
+          extractionOptions: [
+            { id: "ghost_ship", label: "Ghost Ship", location: "port", position: { x: spawnPositions.portGhostShip[0], y: spawnPositions.portGhostShip[1], z: spawnPositions.portGhostShip[2] } },
+            { id: "port", label: "Port", location: "port", position: { x: spawnPositions.port[0], y: spawnPositions.port[1], z: spawnPositions.port[2] } }
+          ]
+        });
+      }
+      return;
+    }
+
+    if (objectivePlan.type === "recover_relics" && nearestInteraction.id.startsWith("relic_")) {
+      const relicIndex = Number(nearestInteraction.id.replace("relic_", ""));
+      const next = [...collectedRelics];
+      next[relicIndex] = true;
+      setCollectedRelics(next);
+      spawnBurst(objectivePlan.positions[relicIndex], "#9fe8ff");
+
+      if (next.every(Boolean)) {
+        setObjectiveComplete(true);
+        setAtmospherePulse((prev) => Math.min(2, prev + 0.4));
+        setObjectiveText(`The relics have been recovered from the ${objectivePlan.locationLabel}. Speak to the guide to learn your escape.`);
+        patchWorld({
+          corruption: Math.max(0, (world.corruption || 0) - 1),
+          awaitingNpcGuidance: true,
+          extractionOptions: [
+            { id: "ghost_ship", label: "Ghost Ship", location: "port", position: { x: spawnPositions.portGhostShip[0], y: spawnPositions.portGhostShip[1], z: spawnPositions.portGhostShip[2] } },
+            { id: "port", label: "Port", location: "port", position: { x: spawnPositions.port[0], y: spawnPositions.port[1], z: spawnPositions.port[2] } }
+          ]
+        });
+      }
+      return;
+    }
 
     if (nearestInteraction.id.startsWith("candle_")) {
       const candleIndex = Number(nearestInteraction.id.replace("candle_", ""));
@@ -552,6 +676,10 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
     callBackendInteraction,
     collectedRelics,
     inputSequence,
+    objectiveComplete,
+    objectivePlan.locationLabel,
+    objectivePlan.positions,
+    objectivePlan.type,
     lanternRepaired,
     litCandles,
     nearestInteraction,
@@ -563,6 +691,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (shouldIgnoreGameplayKey(event)) return;
       if (event.repeat) return;
       if (event.key.toLowerCase() !== "e") return;
       if (!nearestInteraction) return;
@@ -584,10 +713,7 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
   return (
     <group>
       <group>
-        <WorldModel path={MODELS.ritualCircle} position={spawnPositions.ruins} scale={1.08} fitSize={4.0} />
-        <WorldModel path={MODELS.altar} position={[spawnPositions.ruins[0] + 0.2, spawnPositions.ruins[1] + 0.02, spawnPositions.ruins[2] - 1.2]} scale={1.0} fitSize={2.4} />
-
-        {spawnPositions.candles.map((position, index) => (
+        {objectivePlan.type === "light_candles" && objectivePlan.positions.map((position, index) => (
           <group key={`candle_${index}`}>
             {litCandles[index] ? (
               <>
@@ -600,36 +726,30 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
           </group>
         ))}
 
-        {ritualCompleted && (
-          <>
-            <pointLight position={[spawnPositions.ruins[0], spawnPositions.ruins[1] + 1.7, spawnPositions.ruins[2]]} intensity={2.2 + atmospherePulse * 0.6} distance={11} color="#d7b4ff" />
-            <mesh position={[spawnPositions.ruins[0], spawnPositions.ruins[1] + 0.08, spawnPositions.ruins[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[2.3, 2.8, 64]} />
-              <meshBasicMaterial color="#c79fff" transparent opacity={0.45 + atmospherePulse * 0.12} />
-            </mesh>
-          </>
+        {objectivePlan.type === "light_candles" && objectiveComplete && objectivePlan.positions[0] && (
+          <pointLight position={[objectivePlan.positions[0][0], objectivePlan.positions[0][1] + 1.7, objectivePlan.positions[0][2]]} intensity={2.2 + atmospherePulse * 0.6} distance={11} color="#d7b4ff" />
         )}
       </group>
 
       <group>
-        <WorldModel path={MODELS.woodenTotem} position={spawnPositions.totem} scale={1.0} fitSize={2.2} />
-        <WorldModel path={MODELS.skull} position={spawnPositions.skull} scale={1.05} fitSize={0.9} />
-        {!lanternRepaired ? (
-          <>
-            <WorldModel path={MODELS.brokenLantern} position={spawnPositions.lantern} scale={1.25} fitSize={1.3} />
-            <pointLight position={[spawnPositions.lantern[0], spawnPositions.lantern[1] + 0.45, spawnPositions.lantern[2]]} intensity={0.3} distance={2.5} color="#8d7f63" />
-          </>
-        ) : (
-          <>
-            <WorldModel path={MODELS.repairedLantern} position={spawnPositions.lantern} scale={1.25} fitSize={1.3} />
-            <pointLight position={[spawnPositions.lantern[0], spawnPositions.lantern[1] + 1.1, spawnPositions.lantern[2]]} intensity={2.3} distance={8.5} color="#ffe39d" />
-          </>
+        {objectivePlan.type === "repair_lantern" && objectivePlan.positions[0] && (
+          !lanternRepaired ? (
+            <>
+              <WorldModel path={MODELS.brokenLantern} position={objectivePlan.positions[0]} scale={1.25} fitSize={1.3} />
+              <pointLight position={[objectivePlan.positions[0][0], objectivePlan.positions[0][1] + 0.45, objectivePlan.positions[0][2]]} intensity={0.3} distance={2.5} color="#8d7f63" />
+            </>
+          ) : (
+            <>
+              <WorldModel path={MODELS.repairedLantern} position={objectivePlan.positions[0]} scale={1.25} fitSize={1.3} />
+              <pointLight position={[objectivePlan.positions[0][0], objectivePlan.positions[0][1] + 1.1, objectivePlan.positions[0][2]]} intensity={2.3} distance={8.5} color="#ffe39d" />
+            </>
+          )
         )}
 
-        {!collectedRelics[0] && <WorldModel path={MODELS.relic1} position={spawnPositions.relics[0]} scale={0.95} fitSize={0.55} />}
-        {!collectedRelics[1] && <WorldModel path={MODELS.relic2} position={spawnPositions.relics[1]} scale={0.95} fitSize={0.55} />}
-        {!collectedRelics[2] && <WorldModel path={MODELS.relic3} position={spawnPositions.relics[2]} scale={0.95} fitSize={0.55} />}
-        {!collectedRelics[3] && <WorldModel path={MODELS.relic4} position={spawnPositions.relics[3]} scale={0.95} fitSize={0.55} />}
+        {objectivePlan.type === "recover_relics" && objectivePlan.positions.map((position, index) => {
+          const relicModels = [MODELS.relic1, MODELS.relic2, MODELS.relic3, MODELS.relic4];
+          return !collectedRelics[index] ? <WorldModel key={`relic_${index}`} path={relicModels[index]} position={position} scale={0.95} fitSize={0.55} /> : null;
+        })}
       </group>
 
       <group>
@@ -656,6 +776,24 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
         <WorldModel path={MODELS.chest} position={spawnPositions.chest} scale={1.05} fitSize={1.8} />
         {chestOpened && <pointLight position={[spawnPositions.chest[0], spawnPositions.chest[1] + 0.8, spawnPositions.chest[2]]} intensity={1.45} distance={6} color="#ffd7aa" />}
         <WorldModel path={MODELS.ghostShip} position={spawnPositions.portGhostShip} rotation={[0, 0.75, 0]} scale={2.9} fitSize={7.5} />
+        <group position={spawnPositions.portGhostShip} rotation={[0, 0.75, 0]}>
+          <mesh ref={ghostShipColliderFrontRef} name="rocks_pack">
+            <boxGeometry args={[12, 10, 1.4]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+          <mesh ref={ghostShipColliderBackRef} name="rocks_pack">
+            <boxGeometry args={[12, 10, 1.4]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+          <mesh ref={ghostShipColliderLeftRef} name="rocks_pack">
+            <boxGeometry args={[1.4, 10, 22]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+          <mesh ref={ghostShipColliderRightRef} name="rocks_pack">
+            <boxGeometry args={[1.4, 10, 22]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        </group>
         <WorldModel path={MODELS.airship} position={spawnPositions.portAirship} rotation={[0, -0.8, 0]} scale={2.6} fitSize={6.5} />
       </group>
 
@@ -664,7 +802,6 @@ export default function SupernaturalGameplayLayer({ playerCoords, onHudChange })
         <WorldModel path={MODELS.statueFace} position={[spawnPositions.shoreline[0] - 4.0, spawnPositions.shoreline[1] + 0.2, spawnPositions.shoreline[2] + 1.8]} rotation={[0, 1.2, 0]} scale={0.95} fitSize={1.4} />
         <WorldModel path={MODELS.woodenTotem} position={[spawnPositions.shoreline[0] + 1.1, spawnPositions.shoreline[1] + 0.1, spawnPositions.shoreline[2] + 3.2]} rotation={[0, 0.5, 0]} scale={0.95} fitSize={1.8} />
         <WorldModel path={MODELS.skull} position={[spawnPositions.shoreline[0] + 2.4, spawnPositions.shoreline[1] + 0.1, spawnPositions.shoreline[2] + 2.2]} scale={1.0} fitSize={0.9} />
-        <WorldModel path={MODELS.ghostShip} position={spawnPositions.shoreGhostShip} rotation={[0, 0.7, 0]} scale={2.6} fitSize={6.8} />
         {totemCleansed && <pointLight position={[spawnPositions.totem[0], spawnPositions.totem[1] + 1.6, spawnPositions.totem[2]]} intensity={1.6} distance={8} color="#8ef0af" />}
       </group>
 

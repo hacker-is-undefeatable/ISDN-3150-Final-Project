@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
+import { shouldIgnoreGameplayKey } from "../game/lib/inputGuards";
 
 const SPEED = 3.2;
 const RUN_MULTIPLIER = 1.7;
@@ -86,6 +87,8 @@ function VrmAvatar({
   isGroundedRef,
   verticalVelocityRef,
   avatarModelPath,
+  onAvatarLoaded,
+  onAvatarProgress,
 }) {
   const [vrmScene, setVrmScene] = useState(null);
   const [vrmInstance, setVrmInstance] = useState(null);
@@ -110,45 +113,54 @@ function VrmAvatar({
     bonesRef.current = {};
     idleBoneRotationsRef.current = null;
 
-    const loadAvatar = async () => {
-      try {
-        const gltf = await loader.loadAsync(avatarModelPath);
-        if (cancelled) return;
+    const loadAvatar = () => {
+      loader.load(
+        avatarModelPath,
+        (gltf) => {
+          if (cancelled) return;
+          const vrm = gltf.userData.vrm;
+          if (!vrm) return;
 
-        const vrm = gltf.userData.vrm;
-        if (!vrm) return;
+          vrm.scene.scale.setScalar(1.35);
+          vrm.scene.rotation.y = avatarYawOffset;
 
-        vrm.scene.scale.setScalar(1.35);
-        vrm.scene.rotation.y = avatarYawOffset;
+          disableVrmOutlines(vrm);
 
-        disableVrmOutlines(vrm);
+          const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
 
-        const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
+          const bones = {
+            leftUpperArm: getBone("leftUpperArm"),
+            rightUpperArm: getBone("rightUpperArm"),
+            leftUpperLeg: getBone("leftUpperLeg"),
+            rightUpperLeg: getBone("rightUpperLeg"),
+            hips: getBone("hips"),
+          };
 
-        const bones = {
-          leftUpperArm: getBone("leftUpperArm"),
-          rightUpperArm: getBone("rightUpperArm"),
-          leftUpperLeg: getBone("leftUpperLeg"),
-          rightUpperLeg: getBone("rightUpperLeg"),
-          hips: getBone("hips"),
-        };
+          bonesRef.current = bones;
 
-        bonesRef.current = bones;
+          const idle = {};
+          Object.entries(bones).forEach(([k, b]) => {
+            if (b) idle[k] = b.quaternion.clone();
+          });
 
-        const idle = {};
-        Object.entries(bones).forEach(([k, b]) => {
-          if (b) idle[k] = b.quaternion.clone();
-        });
+          idleBoneRotationsRef.current = idle;
 
-        idleBoneRotationsRef.current = idle;
-
-        setVrmScene(vrm.scene);
-        setVrmInstance(vrm);
-      } catch (error) {
-        if (cancelled) return;
-        setVrmScene(null);
-        setVrmInstance(null);
-      }
+          setVrmScene(vrm.scene);
+          setVrmInstance(vrm);
+          if (typeof onAvatarLoaded === "function") {
+            try { onAvatarLoaded(); } catch (e) {}
+          }
+        },
+        (xhr) => {
+          if (typeof onAvatarProgress === "function") {
+            const ratio = xhr.total ? xhr.loaded / xhr.total : 0;
+            try { onAvatarProgress(Math.min(1, Math.max(0, ratio))); } catch (e) {}
+          }
+        },
+        (err) => {
+          // ignore
+        }
+      );
     };
 
     loadAvatar();
@@ -272,11 +284,15 @@ function VrmAvatar({
 
 /* ===================== PLAYER RIG ===================== */
 
-export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange, avatarModelPath }) {
+export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange, avatarModelPath, initialPosition, onLoaded, onAvatarProgress, showAvatar }) {
   const { camera } = useThree();
 
   const pressed = useRef(new Set());
-  const positionRef = useRef(new THREE.Vector3(0, 0, 2));
+  const positionRef = useRef(new THREE.Vector3(
+    Number.isFinite(initialPosition?.x) ? initialPosition.x : 0,
+    Number.isFinite(initialPosition?.y) ? initialPosition.y : 0,
+    Number.isFinite(initialPosition?.z) ? initialPosition.z : 2
+  ));
   const yawRef = useRef(0);
 
   const viewYawRef = useRef(Math.PI);
@@ -467,6 +483,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
 
   useEffect(() => {
     const down = (e) => {
+      if (shouldIgnoreGameplayKey(e)) return;
       pressed.current.add(e.key);
 
       if (e.code === "Space") {
@@ -474,7 +491,10 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
         jumpBufferTimerRef.current = JUMP_BUFFER_TIME;
       }
     };
-    const up = (e) => pressed.current.delete(e.key);
+    const up = (e) => {
+      if (shouldIgnoreGameplayKey(e)) return;
+      pressed.current.delete(e.key);
+    };
 
     const mouseDown = (e) => {
       if (e.button !== 0) return;
@@ -721,8 +741,10 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
       walkTimeRef={walkTimeRef}
       isGroundedRef={isGroundedRef}
       verticalVelocityRef={verticalVelocityRef}
-      visible={mode === "third-person"}
+      visible={mode === "third-person" && !!showAvatar}
       avatarModelPath={avatarModelPath}
+      onAvatarLoaded={onLoaded}
+      onAvatarProgress={onAvatarProgress}
     />
   );
 }

@@ -1,9 +1,11 @@
 import { create } from "zustand";
-import { initialWorldState, mergeWorldState } from "../world/worldState";
+import { initialWorldState, mergeWorldState, resetWorldState } from "../world/worldState";
 
 export const useWorldStore = create((set) => ({
   world: initialWorldState,
   setWorld: (next) => set({ world: next }),
+  resetWorld: () => set({ world: resetWorldState() }),
+  setDirectionHint: (hint) => set((state) => ({ world: { ...state.world, directionHint: hint } })),
   patchWorld: (patch) =>
     set((state) => ({
       world: mergeWorldState(state.world, patch)

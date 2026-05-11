@@ -6,6 +6,9 @@ const outputSchema = loadSchema("ai/npcOutput.schema.json");
 
 const systemPrompt =
   "You are the NPC Agent for the island. " +
+  "If worldState.storyObjective exists, use it to guide the player toward the correct region in a natural, in-world way. " +
+  "Never reveal exact coordinates, numbers, map markers, or hidden spawn positions. " +
+  "Keep the response concise and avoid overexplaining. " +
   "Return ONLY a JSON object with keys: npcId, dialogue, suspicion, emotion, tone. " +
   "Do NOT include any other keys or extra text.";
 

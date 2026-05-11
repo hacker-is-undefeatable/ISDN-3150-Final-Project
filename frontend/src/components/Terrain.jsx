@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useGLTF } from "@react-three/drei";
+import { useEffect, useState } from "react";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 
 const TERRAIN_MODEL_URL = "/psx-temple-island/source/envoriment2.glb";
@@ -21,10 +21,38 @@ function createFallbackMaterial(material) {
   });
 }
 
-export default function Terrain({ collidersRef, onMapBoundsChange }) {
-  const { scene } = useGLTF(TERRAIN_MODEL_URL);
+export default function Terrain({ collidersRef, onMapBoundsChange, onLoaded, onProgress }) {
+  const [scene, setScene] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const loader = new GLTFLoader();
+
+    loader.load(
+      TERRAIN_MODEL_URL,
+      (gltf) => {
+        if (cancelled) return;
+        setScene(gltf.scene);
+      },
+      (xhr) => {
+        if (typeof onProgress === "function") {
+          const ratio = xhr.total ? xhr.loaded / xhr.total : 0;
+          try { onProgress(Math.min(1, Math.max(0, ratio))); } catch (e) {}
+        }
+      },
+      (err) => {
+        // ignore load error
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onProgress]);
+
+  useEffect(() => {
+    if (!scene) return;
+
     scene.scale.setScalar(TERRAIN_SCALE);
     scene.updateMatrixWorld(true);
 
@@ -47,7 +75,6 @@ export default function Terrain({ collidersRef, onMapBoundsChange }) {
         obj.material = Array.isArray(obj.material) ? updated : updated[0];
       }
 
-      // Terrain meshes are typically high-poly; avoid self-shadow casting cost.
       obj.castShadow = false;
       obj.receiveShadow = false;
 
@@ -114,6 +141,10 @@ export default function Terrain({ collidersRef, onMapBoundsChange }) {
       alwaysBlockNames,
     };
 
+    if (typeof onLoaded === "function") {
+      try { onLoaded(); } catch (e) {}
+    }
+
     return () => {
       collidersRef.current = {
         ground: [],
@@ -123,7 +154,6 @@ export default function Terrain({ collidersRef, onMapBoundsChange }) {
     };
   }, [scene, collidersRef, onMapBoundsChange]);
 
+  if (!scene) return null;
   return <primitive object={scene} frustumCulled />;
 }
-
-useGLTF.preload(TERRAIN_MODEL_URL);

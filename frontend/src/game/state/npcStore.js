@@ -10,6 +10,11 @@ export const useNpcStore = create((set, get) => ({
   cooldownUntil: 0,
   setActiveNpc: (npcId) => set({ activeNpcId: npcId, isDialogueOpen: true }),
   closeDialogue: () => set({ isDialogueOpen: false }),
+  dialogueMinimized: {},
+  setDialogueMinimized: (npcId, value) =>
+    set((state) => ({ dialogueMinimized: { ...(state.dialogueMinimized || {}), [npcId]: !!value } })),
+  toggleDialogueMinimized: (npcId) =>
+    set((state) => ({ dialogueMinimized: { ...(state.dialogueMinimized || {}), [npcId]: !state.dialogueMinimized?.[npcId] } })),
   setCooldown: (ms = DEFAULT_COOLDOWN_MS) =>
     set({ cooldownUntil: Date.now() + ms }),
   updateNpcState: (npcId, patch) =>

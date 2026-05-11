@@ -18,6 +18,10 @@ export default function RunObjectivePanel() {
       return "Run complete. Review your reward in the journal.";
     }
 
+    if (world?.storyObjective?.hint) {
+      return world.storyObjective.hint;
+    }
+
     if (world?.corruption >= 70) {
       return "High corruption detected. Seek a safe exit or counter the corruption.";
     }
@@ -27,7 +31,7 @@ export default function RunObjectivePanel() {
     }
 
     return "Explore the marked locations and investigate anomalies to progress the expedition.";
-  }, [runPhase, world?.corruption, world?.dangerLevel]);
+  }, [runPhase, world?.corruption, world?.dangerLevel, world?.storyObjective?.hint]);
 
   if (!isOpen) {
     return (

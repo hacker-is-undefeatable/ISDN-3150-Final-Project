@@ -9,7 +9,9 @@ export const initialWorldState = {
   activeEvents: [],
   objectiveTargets: [],
   objectivesPreloaded: false,
+  storyObjective: null,
   extractionTarget: null,
+  directionHint: null,
   player: {
     location: "port",
     health: 100,
@@ -38,5 +40,13 @@ export function mergeWorldState(base, patch) {
     ...patch,
     player: { ...base.player, ...patch.player },
     factions: mergeFactions(base.factions, patch.factions)
+  };
+}
+
+export function resetWorldState() {
+  return {
+    ...initialWorldState,
+    player: { ...initialWorldState.player, inventory: [...initialWorldState.player.inventory] },
+    factions: mergeFactions(initialWorldState.factions, {})
   };
 }
