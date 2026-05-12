@@ -1,0 +1,503 @@
+Build a complete AI-driven objective, puzzle, and event system for my existing supernatural island expedition game.
+
+========================================
+IMPORTANT CONTEXT
+=================
+
+Current gameplay architecture already exists.
+
+Current systems:
+
+* AI Director loop
+* objective system
+* NPC interaction
+* extraction system
+* weather controller
+* event manager
+* Zustand world state
+* minimap targets
+* AI backend
+
+Existing interaction model:
+
+* Press E is context-sensitive
+* E is used for:
+
+  * objectives
+  * NPC interactions
+  * extraction
+  * puzzle interactions
+
+Valid objective locations:
+
+* Shoreline
+* Forest Path
+* Bridge
+* Cave
+* Ruins
+* Port
+
+DO NOT create objectives outside these locations.
+
+========================================
+AVAILABLE 3D ASSETS
+===================
+
+ALL assets below MUST be integrated into gameplay systems and event logic.
+
+Environment/Event Assets:
+
+* airship.glb
+* altar.glb
+* broken_lantern.glb
+* candles_off.glb
+* candles_on.glb
+* chest.glb
+* ghost_ship.glb
+* latern_lamp.glb
+* relics_01.glb
+* relics_02.glb
+* relics_03.glb
+* relics_04.glb
+* repaired_lantern.glb
+* ritual_circle.glb
+* skull.glb
+* statue_face.glb
+* statue_fragment_of_amenhotep_iii.glb
+* stone_tablet.glb
+* stone_without_a_sword.glb
+* sword.glb
+* the_sword_with_the_stone.glb
+* wooden_totem.glb
+
+Character Assets:
+
+* multiple .vrm playable characters already exist
+
+========================================
+AVAILABLE WEATHER HDRIs
+=======================
+
+* cloudy.exr
+* mist.exr
+* night.exr
+
+========================================
+AVAILABLE AUDIO
+===============
+
+* footstep.wav
+* forest.wav
+* ritual.wav
+* seashore.wav
+
+========================================
+CORE DESIGN GOAL
+================
+
+The island should feel:
+
+* mysterious
+* reactive
+* atmospheric
+* replayable
+
+The AI Director should orchestrate:
+
+* objectives
+* weather
+* puzzle events
+* supernatural encounters
+* extraction tension
+
+This is NOT a combat game.
+
+Focus on:
+
+* exploration
+* atmosphere
+* puzzle solving
+* environmental storytelling
+* supernatural expedition gameplay
+
+========================================
+REQUIRED IMPLEMENTATION
+=======================
+
+Implement:
+
+* modular puzzle system
+* event chains
+* environmental interactions
+* AI-reactive objective flow
+* puzzle completion tracking
+* dynamic atmospheric events
+
+========================================
+PUZZLE SYSTEM
+=============
+
+Create reusable puzzle architecture.
+
+Each puzzle should support:
+
+* target location
+* activation state
+* completion state
+* interaction prompts
+* optional timed conditions
+* event triggers
+* world state impact
+
+Use Press E for interactions.
+
+========================================
+MANDATORY PUZZLES
+=================
+
+Implement ALL of the following:
+
+---
+
+1. Candle Ritual Puzzle
+
+---
+
+Assets:
+
+* candles_off.glb
+* candles_on.glb
+* ritual_circle.glb
+* altar.glb
+
+Gameplay:
+
+* candles begin extinguished
+* player must light candles in correct order
+* lighting candles changes atmosphere
+* ritual audio intensifies
+* successful completion activates ritual circle
+* failure may increase corruption
+
+Add:
+
+* glowing particles
+* dynamic lighting changes
+* whisper ambience
+* completion VFX
+
+---
+
+2. Broken Lantern Puzzle
+
+---
+
+Assets:
+
+* broken_lantern.glb
+* repaired_lantern.glb
+* relics_01.glb
+* relics_02.glb
+
+Gameplay:
+
+* player discovers broken lantern
+* player must locate missing relic components
+* E repairs lantern
+* repaired lantern reveals hidden clues/objectives
+* repaired lantern reduces fog nearby
+
+Add:
+
+* light radius system
+* hidden markings revealed in fog
+* dynamic minimap clue updates
+
+---
+
+3. Sword In The Stone Puzzle
+
+---
+
+Assets:
+
+* stone_without_a_sword.glb
+* sword.glb
+* the_sword_with_the_stone.glb
+
+Gameplay:
+
+* player discovers ancient stone
+* sword initially embedded
+* conditions required before removal:
+
+  * low corruption
+  * completed objectives
+  * specific weather OR event
+* pulling sword triggers major world event
+
+Possible outcomes:
+
+* unlock legendary extraction
+* ghost ship arrival
+* corruption cleanse
+* legendary character unlock
+
+Add:
+
+* cinematic camera moment
+* environmental lighting pulse
+* ritual audio escalation
+
+---
+
+4. Ghost Ship Event
+
+---
+
+Assets:
+
+* ghost_ship.glb
+* seashore.wav
+* mist.exr
+
+Gameplay:
+
+* rare dynamic event
+* ship appears offshore during fog/night
+* player may investigate
+* may contain:
+
+  * chest
+  * relics
+  * hidden lore
+  * extraction point
+
+Add:
+
+* fog intensification
+* distant bell audio
+* spectral lighting
+
+---
+
+5. Totem Corruption Puzzle
+
+---
+
+Assets:
+
+* wooden_totem.glb
+* skull.glb
+* ritual_circle.glb
+
+Gameplay:
+
+* corrupted totems spread corruption
+* player can cleanse OR activate them
+* choices affect future AI events
+
+Outcomes:
+
+* cleansing lowers corruption
+* activating increases rare supernatural encounters
+
+---
+
+6. Ancient Tablet Puzzle
+
+---
+
+Assets:
+
+* stone_tablet.glb
+* statue_face.glb
+* statue_fragment_of_amenhotep_iii.glb
+
+Gameplay:
+
+* tablets contain fragmented clues
+* players investigate ruins
+* assembling clue chain unlocks hidden event
+
+Add:
+
+* glowing glyph effects
+* subtle environmental audio
+* hidden objective chain
+
+---
+
+7. Relic Chest Puzzle
+
+---
+
+Assets:
+
+* chest.glb
+* relics_03.glb
+* relics_04.glb
+
+Gameplay:
+
+* locked relic chest
+* clues scattered around island
+* player solves environmental puzzle
+* chest unlocks:
+
+  * rare objective
+  * extraction shortcut
+  * rare character unlock chance
+
+========================================
+EVENT CHAIN SYSTEM
+==================
+
+Events should chain dynamically.
+
+Example:
+
+* repairing lantern
+  → reveals hidden ritual site
+  → activates ghost ship event
+  → unlocks extraction
+
+Director AI should be able to:
+
+* escalate events
+* react to puzzle completion
+* alter weather
+* modify corruption/danger
+
+========================================
+WEATHER INTEGRATION
+===================
+
+Use:
+
+* cloudy.exr
+* mist.exr
+* night.exr
+
+Weather should dynamically affect:
+
+* fog density
+* visibility
+* puzzle difficulty
+* event availability
+* audio layers
+
+========================================
+AUDIO SYSTEM
+============
+
+Implement dynamic layered ambience.
+
+Use:
+
+* forest.wav
+* ritual.wav
+* seashore.wav
+* footstep.wav
+
+Audio should:
+
+* crossfade smoothly
+* react to weather
+* intensify during events
+* spatialize near puzzles/events
+
+========================================
+ATMOSPHERIC EFFECTS
+===================
+
+Implement:
+
+* fog transitions
+* glow particles
+* candle lighting
+* environmental flickering
+* subtle screen effects
+* audio reverb in caves
+* darkness pulses during corruption spikes
+
+========================================
+DIRECTOR AI INTEGRATION
+=======================
+
+Director AI must understand:
+
+* active puzzles
+* completed puzzles
+* player corruption
+* current weather
+* unresolved events
+
+Director should:
+
+* create puzzle chains
+* avoid repetition
+* escalate tension gradually
+
+========================================
+SAVE SYSTEM
+===========
+
+Persist:
+
+* completed puzzles
+* unlocked events
+* legendary discoveries
+* extraction outcomes
+* unlocked characters
+
+========================================
+TECHNICAL REQUIREMENTS
+======================
+
+Use:
+
+* React Three Fiber
+* Zustand
+* modular components
+* reusable event prefabs
+* scalable architecture
+
+Create:
+
+* PuzzleManager
+* PuzzlePrefabs
+* EventChainManager
+* DynamicAudioManager
+* AtmosphericEffectManager
+
+========================================
+IMPORTANT DESIGN RULES
+======================
+
+DO NOT:
+
+* add combat systems
+* add inventory clutter
+* add MMORPG mechanics
+* create procedural terrain
+
+FOCUS ON:
+
+* immersion
+* atmosphere
+* mystery
+* environmental storytelling
+* replayability
+* AI-directed pacing
+
+The final experience should feel like:
+“a supernatural AI-directed expedition where the island reacts to player actions.”
+
+Deliver:
+
+* complete puzzle system
+* event chain architecture
+* integrated atmospheric systems
+* modular prefab logic
+* reusable scalable implementation

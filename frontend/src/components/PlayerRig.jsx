@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
+import { shouldIgnoreGameplayKey } from "../game/lib/inputGuards";
 
 const SPEED = 3.2;
 const RUN_MULTIPLIER = 1.7;
@@ -31,7 +32,8 @@ const GRAVITY = 18;
 const JUMP_VELOCITY = 6.2;
 const MAX_FALL_SPEED = 20;
 const JUMP_BUFFER_TIME = 0.12;
-const POSITION_REPORT_INTERVAL = 0.1;
+const POSITION_REPORT_INTERVAL = 0.2;
+const FOOTSTEP_PLAYBACK_RATE = 2.0;
 
 function disableVrmOutlines(vrm) {
   if (!vrm?.scene) return;
@@ -86,6 +88,8 @@ function VrmAvatar({
   isGroundedRef,
   verticalVelocityRef,
   avatarModelPath,
+  onAvatarLoaded,
+  onAvatarProgress,
 }) {
   const [vrmScene, setVrmScene] = useState(null);
   const [vrmInstance, setVrmInstance] = useState(null);
@@ -110,43 +114,57 @@ function VrmAvatar({
     bonesRef.current = {};
     idleBoneRotationsRef.current = null;
 
-    loader.load(avatarModelPath, (gltf) => {
-      if (cancelled) return;
+    const loadAvatar = () => {
+      loader.load(
+        avatarModelPath,
+        (gltf) => {
+          if (cancelled) return;
+          const vrm = gltf.userData.vrm;
+          if (!vrm) return;
 
-      const vrm = gltf.userData.vrm;
-      if (!vrm) return;
+          vrm.scene.scale.setScalar(1.35);
+          vrm.scene.rotation.y = avatarYawOffset;
 
-      vrm.scene.scale.setScalar(1.35);
-      vrm.scene.rotation.y = avatarYawOffset;
+          disableVrmOutlines(vrm);
 
-      disableVrmOutlines(vrm);
+          const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
 
-      const getBone = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
+          const bones = {
+            leftUpperArm: getBone("leftUpperArm"),
+            rightUpperArm: getBone("rightUpperArm"),
+            leftUpperLeg: getBone("leftUpperLeg"),
+            rightUpperLeg: getBone("rightUpperLeg"),
+            hips: getBone("hips"),
+          };
 
-      const bones = {
-        leftUpperArm: getBone("leftUpperArm"),
-        rightUpperArm: getBone("rightUpperArm"),
-        leftUpperLeg: getBone("leftUpperLeg"),
-        rightUpperLeg: getBone("rightUpperLeg"),
-        hips: getBone("hips"),
-      };
+          bonesRef.current = bones;
 
-      bonesRef.current = bones;
+          const idle = {};
+          Object.entries(bones).forEach(([k, b]) => {
+            if (b) idle[k] = b.quaternion.clone();
+          });
 
-      const idle = {};
-      Object.entries(bones).forEach(([k, b]) => {
-        if (b) idle[k] = b.quaternion.clone();
-      });
+          idleBoneRotationsRef.current = idle;
 
-      idleBoneRotationsRef.current = idle;
+          setVrmScene(vrm.scene);
+          setVrmInstance(vrm);
+          if (typeof onAvatarLoaded === "function") {
+            try { onAvatarLoaded(); } catch (e) {}
+          }
+        },
+        (xhr) => {
+          if (typeof onAvatarProgress === "function") {
+            const ratio = xhr.total ? xhr.loaded / xhr.total : 0;
+            try { onAvatarProgress(Math.min(1, Math.max(0, ratio))); } catch (e) {}
+          }
+        },
+        (err) => {
+          // ignore
+        }
+      );
+    };
 
-      setVrmScene(vrm.scene);
-      setVrmInstance(vrm);
-    }, undefined, () => {
-      if (cancelled) return;
-      setVrmScene(null);
-      setVrmInstance(null);
-    });
+    loadAvatar();
 
     return () => {
       cancelled = true;
@@ -267,11 +285,15 @@ function VrmAvatar({
 
 /* ===================== PLAYER RIG ===================== */
 
-export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange, avatarModelPath }) {
+export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange, avatarModelPath, initialPosition, onLoaded, onAvatarProgress, showAvatar }) {
   const { camera } = useThree();
 
   const pressed = useRef(new Set());
-  const positionRef = useRef(new THREE.Vector3(0, 0, 2));
+  const positionRef = useRef(new THREE.Vector3(
+    Number.isFinite(initialPosition?.x) ? initialPosition.x : 0,
+    Number.isFinite(initialPosition?.y) ? initialPosition.y : 0,
+    Number.isFinite(initialPosition?.z) ? initialPosition.z : 2
+  ));
   const yawRef = useRef(0);
 
   const viewYawRef = useRef(Math.PI);
@@ -282,6 +304,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
   const verticalVelocityRef = useRef(0);
   const isGroundedRef = useRef(true);
   const jumpBufferTimerRef = useRef(0);
+  const footAudioRef = useRef(null);
 
   const draggingRef = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
@@ -293,6 +316,14 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
   const collisionNormalRef = useRef(new THREE.Vector3());
   const collisionOriginRef = useRef(new THREE.Vector3());
   const intersectionsRef = useRef([]);
+  const camForwardRef = useRef(new THREE.Vector3());
+  const camRightRef = useRef(new THREE.Vector3());
+  const moveDirRef = useRef(new THREE.Vector3());
+  const cameraPosRef = useRef(new THREE.Vector3());
+  const lookDirRef = useRef(new THREE.Vector3());
+  const orbitRef = useRef(new THREE.Vector3());
+  const thirdPersonPosRef = useRef(new THREE.Vector3());
+  const lookAtRef = useRef(new THREE.Vector3());
   const positionReportRef = useRef({
     timer: 0,
     lastSignature: "",
@@ -454,6 +485,7 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
 
   useEffect(() => {
     const down = (e) => {
+      if (shouldIgnoreGameplayKey(e)) return;
       pressed.current.add(e.key);
 
       if (e.code === "Space") {
@@ -461,7 +493,10 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
         jumpBufferTimerRef.current = JUMP_BUFFER_TIME;
       }
     };
-    const up = (e) => pressed.current.delete(e.key);
+    const up = (e) => {
+      if (shouldIgnoreGameplayKey(e)) return;
+      pressed.current.delete(e.key);
+    };
 
     const mouseDown = (e) => {
       if (e.button !== 0) return;
@@ -513,6 +548,23 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
     });
   }, [onPositionChange]);
 
+  // setup footstep audio for walking
+  useEffect(() => {
+    const audio = new Audio('/sound/footstep.wav');
+    audio.loop = true;
+    audio.volume = 0.12;
+    audio.playbackRate = FOOTSTEP_PLAYBACK_RATE;
+    footAudioRef.current = audio;
+
+    return () => {
+      try {
+        audio.pause();
+        audio.src = '';
+      } catch (e) {}
+      footAudioRef.current = null;
+    };
+  }, []);
+
   /* -------- MAIN LOOP -------- */
 
   useFrame((_, delta) => {
@@ -526,19 +578,19 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
       (key.has("w") || key.has("ArrowUp") ? 1 : 0);
     const isRunning = key.has("r") || key.has("R");
 
-    const camForward = new THREE.Vector3(
+    const camForward = camForwardRef.current.set(
       Math.sin(viewYawRef.current),
       0,
       -Math.cos(viewYawRef.current)
     );
 
-    const camRight = new THREE.Vector3(
+    const camRight = camRightRef.current.set(
       Math.cos(viewYawRef.current),
       0,
       Math.sin(viewYawRef.current)
     );
 
-    const moveDir = new THREE.Vector3();
+    const moveDir = moveDirRef.current.set(0, 0, 0);
     if (dx || dz) {
       moveDir.addScaledVector(camRight, dx);
       moveDir.addScaledVector(camForward, -dz);
@@ -663,40 +715,57 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
     }
 
     if (mode === "first-person") {
-      const pos = new THREE.Vector3(
+      const pos = cameraPosRef.current.set(
         positionRef.current.x,
         positionRef.current.y + CAMERA_HEIGHT_OFFSET + headBob,
         positionRef.current.z
       );
 
-      const look = new THREE.Vector3(
+      const look = lookDirRef.current.set(
         Math.sin(viewYawRef.current) * pitchCos,
         pitchSin,
         -Math.cos(viewYawRef.current) * pitchCos
       );
 
       camera.position.lerp(pos, delta * 10);
-      camera.lookAt(pos.clone().add(look));
+      lookAtRef.current.copy(pos).add(look);
+      camera.lookAt(lookAtRef.current);
       return;
     }
 
-    const orbit = new THREE.Vector3(
+    const orbit = orbitRef.current.set(
       Math.sin(viewYawRef.current) * pitchCos,
       pitchSin,
       -Math.cos(viewYawRef.current) * pitchCos
     );
 
-    const camPos = new THREE.Vector3()
+    const camPos = thirdPersonPosRef.current
       .copy(positionRef.current)
       .addScaledVector(orbit, -THIRD_PERSON_CAMERA_DISTANCE)
-      .add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET + headBob, 0));
+      .add(cameraPosRef.current.set(0, CAMERA_HEIGHT_OFFSET + headBob, 0));
 
-    const lookAt = new THREE.Vector3()
+    const lookAt = lookAtRef.current
       .copy(positionRef.current)
-      .add(new THREE.Vector3(0, CHARACTER_ROOT_OFFSET + 0.2, 0));
+      .add(cameraPosRef.current.set(0, CHARACTER_ROOT_OFFSET + 0.2, 0));
 
     camera.position.lerp(camPos, delta * 6);
     camera.lookAt(lookAt);
+
+    // play footstep audio when moving on ground
+    try {
+      const audio = footAudioRef.current;
+      if (audio) {
+        const moving = moveAmountRef.current > 0.01 && isGroundedRef.current;
+        if (moving) {
+          if (audio.paused) audio.play().catch(() => {});
+        } else {
+          if (!audio.paused) {
+            audio.pause();
+            try { audio.currentTime = 0; } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
   });
 
   return (
@@ -707,8 +776,10 @@ export default function PlayerRig({ mode, terrainCollidersRef, onPositionChange,
       walkTimeRef={walkTimeRef}
       isGroundedRef={isGroundedRef}
       verticalVelocityRef={verticalVelocityRef}
-      visible={mode === "third-person"}
+      visible={mode === "third-person" && !!showAvatar}
       avatarModelPath={avatarModelPath}
+      onAvatarLoaded={onLoaded}
+      onAvatarProgress={onAvatarProgress}
     />
   );
 }

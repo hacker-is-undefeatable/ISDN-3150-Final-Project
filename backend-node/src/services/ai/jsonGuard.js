@@ -24,6 +24,12 @@ export function validateJson(schema, payload) {
 }
 
 export function requireJson(schema, rawText) {
-  const json = parseJsonStrict(rawText);
+  let json;
+  if (typeof rawText === "string") {
+    json = parseJsonStrict(rawText);
+  } else {
+    json = rawText;
+  }
+
   return validateJson(schema, json);
 }

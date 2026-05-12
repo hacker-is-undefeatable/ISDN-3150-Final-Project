@@ -1,13 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useWorldStore } from "../state/worldStore";
-import { getWeatherPreset } from "../weather/WeatherManager";
 
 const AUDIO_MAP = {
-  wind_soft: "/audio/wind_soft.mp3",
-  fog_drone: "/audio/fog_drone.mp3",
-  storm_rumble: "/audio/storm_rumble.mp3",
-  blood_moon_chant: "/audio/blood_moon_chant.mp3",
-  corruption_pulse: "/audio/corruption_pulse.mp3"
+  cloudy: "/sound/forest.wav",
+  mist: "/sound/seashore.wav",
+  night: "/sound/ritual.wav"
 };
 
 export default function AudioAtmosphere() {
@@ -16,17 +13,15 @@ export default function AudioAtmosphere() {
   const activeSoundRef = useRef(null);
 
   useEffect(() => {
-    const preset = getWeatherPreset(weatherId);
-    const nextSound = preset?.ambientSound || null;
+    const nextSound = AUDIO_MAP[weatherId] || null;
 
     if (activeSoundRef.current === nextSound) {
       return;
     }
 
     activeSoundRef.current = nextSound;
-    console.info("[Audio] Ambient", nextSound);
 
-    if (!nextSound || !AUDIO_MAP[nextSound]) {
+    if (!nextSound) {
       if (audioRef.current) {
         audioRef.current.pause();
       }

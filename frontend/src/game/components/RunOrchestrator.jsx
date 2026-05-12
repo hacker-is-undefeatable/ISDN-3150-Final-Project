@@ -4,6 +4,7 @@ import { requestDirectorUpdate } from "../ai/directorApi";
 import { pickLocationTarget } from "../data/locationTargets";
 import { useRunStore } from "../state/runStore";
 import { pickExtractionTarget } from "../data/extractionTargets";
+import { buildStoryObjective } from "../data/storyObjectives";
 
 export default function RunOrchestrator() {
   const worldState = useWorldStore((state) => state.world);
@@ -21,10 +22,24 @@ export default function RunOrchestrator() {
   useEffect(() => {
     if (!worldState.runSeed) {
       const seed = Math.floor(Date.now() % 100000);
-      patchWorld({ runSeed: seed });
+      patchWorld({
+        runSeed: seed,
+        storyObjective: null,
+        objectiveTargets: [],
+        objectivesPreloaded: false
+      });
       startRun(`run_${seed}`, seed);
     }
   }, [patchWorld, startRun, worldState.runSeed]);
+
+  useEffect(() => {
+    if (!worldState.runSeed || worldState.storyObjective) {
+      return;
+    }
+
+    const objective = buildStoryObjective(worldState.runSeed);
+    patchWorld({ storyObjective: objective });
+  }, [patchWorld, worldState.runSeed, worldState.storyObjective]);
 
   useEffect(() => {
     let timerId = null;
@@ -47,8 +62,8 @@ export default function RunOrchestrator() {
         });
         console.info("[Director] Event queued", director.nextEvent);
 
-        if (!worldState.objectivesPreloaded && objectiveTargets.length < 5) {
-          const target = pickLocationTarget(director.nextEvent.location);
+        if (!worldState.storyObjective && !worldState.objectivesPreloaded && objectiveTargets.length < 5) {
+          const target = pickLocationTarget(director.nextEvent.location, worldState.runSeed + objectiveTargets.length);
           if (target) {
             const exists = objectiveTargets.some(
               (existing) =>
@@ -67,7 +82,7 @@ export default function RunOrchestrator() {
         }
 
         if (!extractionAvailable && objectivesCompleted >= objectivesRequired) {
-          const extraction = pickExtractionTarget();
+          const extraction = pickExtractionTarget(worldState.runSeed);
           if (extraction) {
             setExtractionTarget(extraction);
             setExtractionAvailable(true);

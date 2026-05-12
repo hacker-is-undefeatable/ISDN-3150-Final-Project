@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useWorldStore } from "../state/worldStore";
 import { useRunStore } from "../state/runStore";
+import { shouldIgnoreGameplayKey } from "../lib/inputGuards";
 import { pickObjectiveType } from "../data/objectives";
 
 export default function ObjectiveManager({ playerCoords }) {
@@ -80,6 +81,7 @@ export default function ObjectiveManager({ playerCoords }) {
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (shouldIgnoreGameplayKey(event)) return;
       if (event.repeat) return;
       if (event.key.toLowerCase() !== "e") return;
       if (!promptVisible) return;

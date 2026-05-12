@@ -1,13 +1,17 @@
 export const initialWorldState = {
   runSeed: 0,
   timeOfDay: "night",
-  weather: "clear",
+  weather: "cloudy",
   dangerLevel: 0,
   corruption: 0,
+  ritualIntensity: 0,
+  supernaturalPulse: 0,
   activeEvents: [],
   objectiveTargets: [],
   objectivesPreloaded: false,
+  storyObjective: null,
   extractionTarget: null,
+  directionHint: null,
   player: {
     location: "port",
     health: 100,
@@ -36,5 +40,13 @@ export function mergeWorldState(base, patch) {
     ...patch,
     player: { ...base.player, ...patch.player },
     factions: mergeFactions(base.factions, patch.factions)
+  };
+}
+
+export function resetWorldState() {
+  return {
+    ...initialWorldState,
+    player: { ...initialWorldState.player, inventory: [...initialWorldState.player.inventory] },
+    factions: mergeFactions(initialWorldState.factions, {})
   };
 }

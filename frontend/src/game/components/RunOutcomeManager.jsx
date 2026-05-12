@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWorldStore } from "../state/worldStore";
 import { useRunStore } from "../state/runStore";
 import { ALLOWED_CHARACTER_MODELS } from "../../lib/avatarModels";
@@ -100,7 +101,11 @@ export default function RunOutcomeManager() {
   const result = useRunStore((state) => state.result);
   const reward = useRunStore((state) => state.reward);
   const setReward = useRunStore((state) => state.setReward);
+  const resetRun = useRunStore((state) => state.resetRun);
+  const resetWorld = useWorldStore((state) => state.resetWorld);
   const { user } = useAuth();
+
+  const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null);
 
@@ -249,10 +254,21 @@ export default function RunOutcomeManager() {
     return null;
   }
 
+  const handleReturnToLobby = () => {
+    resetRun();
+    resetWorld();
+    navigate("/game", { replace: true });
+  };
+
   return (
     <>
       <RunSummaryScreen summary={summary} />
       <RewardReveal reward={reward} />
+      <div className="run-outcome-actions">
+        <button type="button" className="run-outcome-actions__button" onClick={handleReturnToLobby}>
+          Return to Lobby
+        </button>
+      </div>
     </>
   );
 }

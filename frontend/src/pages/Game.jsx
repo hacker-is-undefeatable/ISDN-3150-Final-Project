@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import NavBar from "../components/NavBar";
 import ModelPreview from "../components/ModelPreview";
 import CharacterGrid from "../components/CharacterGrid";
-import { ALLOWED_CHARACTER_MODELS, DEFAULT_CHARACTER_MODEL } from "../lib/avatarModels";
+import { ALLOWED_CHARACTER_MODELS, DEFAULT_CHARACTER_MODEL, getCharacterModelPath } from "../lib/avatarModels";
 import SceneSelector from "../components/SceneSelector";
 import CardGrid from "../components/CardGrid";
 import CardShardImage from "../components/CardShardImage";
@@ -41,7 +41,7 @@ export default function Game() {
             label: model.label,
             name: model.label,
             description: "",
-            model_path: `/model/${model.code}.vrm`,
+            model_path: getCharacterModelPath(model.code),
             image_path: `/character-img/character-img-${model.code.replace("model", "")}.png`,
             unlocked: model.code === DEFAULT_CHARACTER_MODEL,
           }))
@@ -115,12 +115,21 @@ export default function Game() {
       const unlockMap = new Map((unlockRows || []).map((row) => [row.character_id, Boolean(row.unlocked)]));
       const cardUnlockMap = new Map((userCardRows || []).map((row) => [row.card_id, Boolean(row.unlocked)]));
       const cardShardMap = new Map((userCardRows || []).map((row) => [row.card_id, Number(row.shard_count) || 0]));
-      const merged = (characterRows || []).map((row) => ({
-        ...row,
-        code: row.model_path?.replace("/model/", "")?.replace(".vrm", "") || `model${String(row.id - 1).padStart(5, "0")}`,
-        label: row.name,
-        unlocked: row.id === 11 || unlockMap.get(row.id) || false,
-      }));
+      const merged = (characterRows || []).map((row) => {
+        const rawPath = row.model_path || "";
+        const code =
+          rawPath
+            .replace("/model/character/", "")
+            .replace("/model/", "")
+            .replace(".vrm", "") || `model${String(row.id - 1).padStart(5, "0")}`;
+
+        return {
+          ...row,
+          code,
+          label: row.name,
+          unlocked: row.id === 11 || unlockMap.get(row.id) || false,
+        };
+      });
 
       const mergedCards = (cardRows || []).map((row) => {
         const shardKey = `${row.character_id}-${row.card_index}`;
@@ -234,15 +243,16 @@ export default function Game() {
 
       <main className="lobby-main">
         {selectedTab === "Play" && (
-          <section className="lobby-section">
-            <h2 className="lobby-heading">Choose Your Scene</h2>
+          <section className="lobby-section play-section">
+            <div className="play-section__header">
+              <h2 className="lobby-heading">Choose Your Scene</h2>
+              <p className="play-section__subtitle">Select an adventure and prepare yourself for what lies ahead</p>
+            </div>
             <SceneSelector selectedScene={selectedScene} onSelect={setSelectedScene} />
 
-            <div style={{ marginTop: 18 }}>
-              <button onClick={handleEnter} disabled={!selectedScene} className="enter-button">
-                ENTER ESCAPE ROOM
-              </button>
-            </div>
+            <button onClick={handleEnter} disabled={!selectedScene} className="enter-button">
+              ENTER ESCAPE ROOM
+            </button>
           </section>
         )}
 
@@ -269,7 +279,7 @@ export default function Game() {
 
             <div className="character-selection__right">
               <div className="character-preview-container">
-                <ModelPreview avatarModelPath={`/model/${selectedCharacter}.vrm`} />
+                <ModelPreview avatarModelPath={getCharacterModelPath(selectedCharacter)} />
               </div>
               <div className="character-description">
                 <div className="character-description__header">

@@ -44,61 +44,66 @@ function VrmPreview({ avatarModelPath }) {
 
     if (!avatarModelPath) return;
 
-    loader.load(avatarModelPath, (gltf) => {
-      if (cancelled) return;
-      const vrm = gltf.userData.vrm;
-      if (!vrm) return;
-      const isDefaultModel =
-        typeof avatarModelPath === "string" && avatarModelPath.includes("model00000.vrm");
-      // reset and adjust to fit preview box
-      vrm.scene.rotation.set(0, 0, 0);
-      vrm.scene.scale.setScalar(1.1);
-      vrm.scene.rotation.y = isDefaultModel ? 0 : Math.PI;
-      vrm.scene.position.set(0, -1, 0);
-
-      disableVrmOutlines(vrm);
-      vrmRef.current = vrm;
-      if (group.current) {
-        group.current.clear();
-        group.current.add(vrm.scene);
-      }
-
-      // Apply a gentle resting/hand-down pose for non-default models so
-      // the preview matches the in-game lowered-arms appearance.
+    const loadPreview = async () => {
       try {
-        const armRestZ = isDefaultModel ? 1.1 : -1.3; // roll offset for upper arm
-        const armLift = isDefaultModel ? 1 : 0.12; // reduces swing/lift for non-defaults
+        const gltf = await loader.loadAsync(avatarModelPath);
+        if (cancelled) return;
+        const vrm = gltf.userData.vrm;
+        if (!vrm) return;
+        const isDefaultModel =
+          typeof avatarModelPath === "string" && avatarModelPath.includes("model00000.vrm");
+        vrm.scene.rotation.set(0, 0, 0);
+        vrm.scene.scale.setScalar(1.1);
+        vrm.scene.rotation.y = isDefaultModel ? 0 : Math.PI;
+        vrm.scene.position.set(0, -1, 0);
 
-        const get = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
-
-        const leftUpper = get("leftUpperArm");
-        const rightUpper = get("rightUpperArm");
-        const leftLower = get("leftLowerArm");
-        const rightLower = get("rightLowerArm");
-
-        if (leftUpper) {
-          const e = new THREE.Euler(-0.05 * armLift, 0, -armRestZ);
-          leftUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
-        }
-        if (rightUpper) {
-          const e = new THREE.Euler(-0.05 * armLift, 0, armRestZ);
-          rightUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+        disableVrmOutlines(vrm);
+        vrmRef.current = vrm;
+        if (group.current) {
+          group.current.clear();
+          group.current.add(vrm.scene);
         }
 
-        // small forearm twist so palms face slightly inward/down
-        if (leftLower) {
-          const e = new THREE.Euler(0, 0.15, 0);
-          leftLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+        try {
+          const armRestZ = isDefaultModel ? 1.1 : -1.3;
+          const armLift = isDefaultModel ? 1 : 0.12;
+
+          const get = (name) => vrm.humanoid?.getNormalizedBoneNode(name);
+
+          const leftUpper = get("leftUpperArm");
+          const rightUpper = get("rightUpperArm");
+          const leftLower = get("leftLowerArm");
+          const rightLower = get("rightLowerArm");
+
+          if (leftUpper) {
+            const e = new THREE.Euler(-0.05 * armLift, 0, -armRestZ);
+            leftUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+          }
+          if (rightUpper) {
+            const e = new THREE.Euler(-0.05 * armLift, 0, armRestZ);
+            rightUpper.quaternion.copy(new THREE.Quaternion().setFromEuler(e));
+          }
+
+          if (leftLower) {
+            const e = new THREE.Euler(0, 0.15, 0);
+            leftLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+          }
+          if (rightLower) {
+            const e = new THREE.Euler(0, -0.15, 0);
+            rightLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+          }
+        } catch (e) {
         }
-        if (rightLower) {
-          const e = new THREE.Euler(0, -0.15, 0);
-          rightLower.quaternion.multiply(new THREE.Quaternion().setFromEuler(e));
+      } catch (error) {
+        if (cancelled) return;
+        if (group.current) {
+          group.current.clear();
         }
-      } catch (e) {
-        // non-fatal, preview still works without pose tweak
-        // silently ignore any bone access errors
+        vrmRef.current = null;
       }
-    });
+    };
+
+    loadPreview();
 
     return () => {
       cancelled = true;

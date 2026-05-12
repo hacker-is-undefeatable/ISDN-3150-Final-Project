@@ -1,30 +1,92 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import UI from "./UI";
 import PlayerRig from "./PlayerRig";
 import Terrain from "./Terrain";
-import NPCInteractionManager from "../game/components/NPCInteractionManager";
 import NPCModel from "./NPCModel";
 import WeatherController from "../game/components/WeatherController";
-import EventSpawner from "../game/components/EventSpawner";
 import AudioAtmosphere from "../game/components/AudioAtmosphere";
-import RunOrchestrator from "../game/components/RunOrchestrator";
-import RunObjectivePanel from "../game/components/RunObjectivePanel";
 import { useWorldStore } from "../game/state/worldStore";
+import { useRunStore } from "../game/state/runStore";
+import SupernaturalGameplayLayer from "../game/components/SupernaturalGameplayLayer";
+import RunOrchestrator from "../game/components/RunOrchestrator";
 import ObjectiveManager from "../game/components/ObjectiveManager";
 import ExtractionManager from "../game/components/ExtractionManager";
 import RunOutcomeManager from "../game/components/RunOutcomeManager";
+import NPCInteractionManager from "../game/components/NPCInteractionManager";
 
 export default function GameScene({ avatarModelPath }) {
   const terrainCollidersRef = useRef({ ground: [], walls: [] });
   const canvasRef = useRef(null);
   const [npcPosition, setNpcPosition] = useState(() => ({ x: 0.9, y: 24.16, z: -3.17 }));
+  const runSeed = useWorldStore((state) => state.world.runSeed);
+
+  const GENSIN_MODELS = [
+    "/model/genshin/model_arlec_v1.vrm",
+    "/model/genshin/model_arlec_v2.vrm",
+    "/model/genshin/model_charlotte.vrm",
+    "/model/genshin/model_furina.vrm",
+    "/model/genshin/model_ganyu.vrm",
+    "/model/genshin/model_keqing.vrm",
+    "/model/genshin/model_kokomi.vrm",
+    "/model/genshin/model_nahida.vrm",
+    "/model/genshin/model_navia.vrm",
+    "/model/genshin/model_neuvi.vrm",
+    "/model/genshin/model_skirk.vrm",
+    "/model/genshin/model_xiangling.vrm",
+    "/model/genshin/model_yelan.vrm",
+    "/model/genshin/model_zhongli.vrm"
+  ];
+
+  const [npcModelPath, setNpcModelPath] = useState(null);
+
+  function createSeededRandom(seed) {
+    let state = Number.isFinite(seed) ? seed : Date.now();
+    return () => {
+      state = (state * 1664525 + 1013904223) % 4294967296;
+      return state / 4294967296;
+    };
+  }
+
+  useEffect(() => {
+    if (!Array.isArray(GENSIN_MODELS) || !GENSIN_MODELS.length) return;
+    if (Number.isFinite(Number(runSeed))) {
+      const rand = createSeededRandom(Number(runSeed) + 7);
+      const idx = Math.floor(rand() * GENSIN_MODELS.length);
+      setNpcModelPath(GENSIN_MODELS[idx]);
+    } else {
+      setNpcModelPath(GENSIN_MODELS[Math.floor(Math.random() * GENSIN_MODELS.length)]);
+    }
+  }, [runSeed]);
   const [isContextLost, setIsContextLost] = useState(false);
+  const [isSceneReady, setIsSceneReady] = useState(false);
+  const _ready = useRef({ terrain: false, avatar: false });
+
+  const markReady = (key) => {
+    _ready.current[key] = true;
+    if (key === "terrain") setTerrainLoaded(true);
+    if (key === "avatar") setAvatarLoaded(true);
+    if ((_ready.current.terrain || key === "terrain") && (_ready.current.avatar || key === "avatar")) {
+      setIsSceneReady(true);
+    }
+  };
+  const [terrainProgress, setTerrainProgress] = useState(0);
+  const [avatarProgress, setAvatarProgress] = useState(0);
+  const [terrainLoaded, setTerrainLoaded] = useState(false);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
 
   const [cameraMode, setCameraMode] = useState("third-person");
-  const [playerCoords, setPlayerCoords] = useState({ x: 0, y: 0, z: 2 });
-  const objectiveTargets = useWorldStore((state) => state.world.objectiveTargets || []);
+  const [playerCoords, setPlayerCoords] = useState({ x: -6.25, y: 24.02, z: 3.92 });
   const extractionTarget = useWorldStore((state) => state.world.extractionTarget);
+  const objectiveTargets = useWorldStore((state) => state.world.objectiveTargets || []);
+  const extractionAvailable = useRunStore((state) => state.extractionAvailable);
+  const [hudState, setHudState] = useState({
+    objectiveText: "Speak to the guide for your first clue.",
+    corruption: 0,
+    weather: "cloudy",
+    ritualIntensity: 0,
+    extractionReady: false
+  });
   const [mapBounds, setMapBounds] = useState({
     minX: -25,
     maxX: 25,
@@ -46,6 +108,13 @@ export default function GameScene({ avatarModelPath }) {
   }, []);
 
   useEffect(() => {
+    setHudState((prev) => ({
+      ...prev,
+      extractionReady: extractionAvailable
+    }));
+  }, [extractionAvailable]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return undefined;
@@ -60,34 +129,15 @@ export default function GameScene({ avatarModelPath }) {
     };
   }, [handleContextLost, handleContextRestored]);
 
-  const nearestObjective = useMemo(() => {
-    if (!objectiveTargets.length || !playerCoords) return null;
-    let best = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    objectiveTargets.forEach((target) => {
-      if (!target?.position) return;
-      const dx = target.position.x - playerCoords.x;
-      const dy = target.position.y - playerCoords.y;
-      const dz = target.position.z - playerCoords.z;
-      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = target;
-      }
-    });
-    return best;
-  }, [objectiveTargets, playerCoords]);
-
-
   return (
     <div className="game-shell">
       <Canvas
         camera={{ position: [0, 3, 8], fov: 60 }}
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
         onCreated={({ gl }) => {
           canvasRef.current = gl.domElement;
-          gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+          gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         }}
       >
         <color attach="background" args={["#101418"]} />
@@ -100,41 +150,66 @@ export default function GameScene({ avatarModelPath }) {
         />
         <directionalLight name="weather-key" position={[12, 20, 10]} intensity={1.1} />
         <directionalLight name="weather-fill" position={[-8, 10, -12]} intensity={0.35} />
-        <Terrain collidersRef={terrainCollidersRef} onMapBoundsChange={setMapBounds} />
+        <Terrain
+          collidersRef={terrainCollidersRef}
+          onMapBoundsChange={setMapBounds}
+          onProgress={(p) => setTerrainProgress(p)}
+          onLoaded={() => markReady('terrain')}
+        />
         <WeatherController />
-        <EventSpawner />
         <AudioAtmosphere />
-        {npcPosition && (
+        <SupernaturalGameplayLayer
+          playerCoords={playerCoords}
+          onHudChange={setHudState}
+          terrainCollidersRef={terrainCollidersRef}
+        />
+        <RunOrchestrator />
+        {npcPosition && npcModelPath && (
           <group position={[npcPosition.x, npcPosition.y, npcPosition.z]}>
             <pointLight intensity={1.1} distance={8} color="#ffd166" />
-            <NPCModel modelPath="/model/genshin/model_kokomi.vrm" />
+            <NPCModel modelPath={npcModelPath} />
           </group>
         )}
-        {objectiveTargets.map((target, index) => (
-          <group
-            key={target.id || `objective_npc_${index}`}
-            position={[target.position.x, target.position.y, target.position.z]}
-          >
-            {nearestObjective?.id === target.id ? (
-              <>
-                <pointLight intensity={0.9} distance={6} color="#9bffcf" />
-                <NPCModel modelPath="/model/genshin/model_kokomi.vrm" />
-              </>
-            ) : (
-              <mesh>
-                <sphereGeometry args={[0.35, 14, 14]} />
-                <meshStandardMaterial color="#9bffcf" emissive="#2b7a5b" emissiveIntensity={0.6} />
-              </mesh>
-            )}
-          </group>
-        ))}
         <PlayerRig
           mode={cameraMode}
           terrainCollidersRef={terrainCollidersRef}
           onPositionChange={setPlayerCoords}
           avatarModelPath={avatarModelPath}
+          initialPosition={playerCoords}
+          onLoaded={() => markReady('avatar')}
+          onAvatarProgress={(p) => setAvatarProgress(p)}
+          showAvatar={avatarLoaded}
         />
       </Canvas>
+
+      {!isSceneReady && (
+        <div className="loading-overlay" role="status" aria-live="polite">
+          <div className="loading-card">
+            <div className="loading-spinner" />
+            <div>
+              <div className="loading-text">Loading island…</div>
+              <div style={{width:240,marginTop:8,height:8,background:'rgba(255,255,255,0.06)',borderRadius:6,overflow:'hidden'}}>
+                <div style={{width: `${Math.round(((terrainProgress + avatarProgress)/2)*100)}%`,height:'100%',background:'#73d0ff',transition:'width 200ms linear'}} />
+              </div>
+              <div style={{marginTop:6,fontSize:12,color:'var(--muted)'}}>{Math.round(((terrainProgress + avatarProgress)/2)*100)}%</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .loading-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:60;background:linear-gradient(180deg,rgba(4,6,10,0.6),rgba(4,6,10,0.8))}
+        .loading-card{background:var(--panel);border:1px solid var(--border);padding:18px 22px;border-radius:14px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow)}
+        .loading-spinner{width:36px;height:36px;border-radius:50%;border:4px solid rgba(255,255,255,0.06);border-top-color:#73d0ff;animation:spin 1s linear infinite}
+        .loading-text{font-weight:700;color:var(--text)}
+        @keyframes spin{to{transform:rotate(360deg)}}
+      `}</style>
+
+      <ObjectiveManager playerCoords={playerCoords} />
+      <ExtractionManager playerCoords={playerCoords} />
+      <NPCInteractionManager npcId="guide" npcPosition={npcPosition} playerCoords={playerCoords} />
+
+      <RunOutcomeManager />
 
       {isContextLost && (
         <div className="webgl-warning">
@@ -149,29 +224,10 @@ export default function GameScene({ avatarModelPath }) {
         npcPosition={npcPosition}
         objectiveTarget={objectiveTargets}
         extractionTarget={extractionTarget}
+        hudState={hudState}
         onToggleCameraMode={toggleCameraMode}
       />
 
-      <RunObjectivePanel />
-      <ObjectiveManager playerCoords={playerCoords} />
-      <ExtractionManager playerCoords={playerCoords} />
-      <RunOutcomeManager />
-
-      <RunOrchestrator />
-
-      <NPCInteractionManager
-        npcId="harbor_guide"
-        npcPosition={npcPosition}
-        playerCoords={playerCoords}
-      />
-      {objectiveTargets.map((target, index) => (
-        <NPCInteractionManager
-          key={target.id || `objective_npc_${index}`}
-          npcId={`objective_${target.location || "target"}_${index}`}
-          npcPosition={target.position}
-          playerCoords={playerCoords}
-        />
-      ))}
     </div>
   );
 }

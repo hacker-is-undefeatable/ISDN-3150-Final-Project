@@ -19,5 +19,6 @@ export const aiClient = {
   director: (payload) => postJson("/api/ai/director", payload),
   npc: (payload) => postJson("/api/ai/npc", payload),
   event: (payload) => postJson("/api/ai/event", payload),
-  reward: (payload) => postJson("/api/ai/reward", payload)
+  reward: (payload) => postJson("/api/ai/reward", payload),
+  interaction: (payload) => postJson("/api/ai/interaction", payload)
 };
