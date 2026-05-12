@@ -1,0 +1,109 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\setlength{\parindent}{0pt}
+
+\title{Technical Documentation (System Architecture Report)\\AI-Driven 3D Island Expedition}
+\author{ISDN 3150 -- Spring 2026}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Project Overview}
+This project implements a replayable, AI-driven 3D supernatural island expedition game. The core design goal is to make each run feel alive and reactive through dynamic events, adaptive pacing, and narrative variety while keeping the player engaged with objective progression and rewards. The build uses a web-first stack with a real-time 3D frontend and a Node.js AI service layer. The system is structured around an AI Director that controls pacing, weather, and encounters, and supporting agents that provide NPC dialogue, event selection, and reward decisions.
+
+\section*{System Architecture}
+\textbf{Frontend (React + Three.js + R3F).}
+The runtime client is a React application that renders the world using React Three Fiber (R3F) and Three.js. Core gameplay is implemented as components and Zustand stores:
+\begin{itemize}[leftmargin=1.1em]
+  \item \textbf{Scene and rendering:} The 3D scene is rendered inside a R3F Canvas, with terrain, lighting, and weather layers.
+  \item \textbf{Player and NPCs:} The player avatar and NPCs use VRM models loaded via GLTF + VRM loader. Movement, collisions, and animation logic live in the player rig component.
+  \item \textbf{Game loop and UI:} Objective tracking, extraction logic, run outcomes, and minimap markers are handled in dedicated UI and game components.
+  \item \textbf{State management:} World, run, NPC, and UI state are managed via Zustand stores to keep the render loop responsive.
+\end{itemize}
+
+\textbf{Backend (Node.js + Express).}
+The AI service layer is a Node.js Express API that exposes agent endpoints:
+\begin{itemize}[leftmargin=1.1em]
+  \item \texttt{/api/ai/director} for pacing, weather, and event selection
+  \item \texttt{/api/ai/npc} for dialogue, emotion, and suspicion
+  \item \texttt{/api/ai/event} for event prefab triggers
+  \item \texttt{/api/ai/reward} for card rewards and unlock rules
+\end{itemize}
+Each endpoint delegates to a dedicated agent module and validates outputs with JSON Schema via AJV before returning them to the client.
+
+\section*{AI Pipeline and Multi-Agent Roles}
+The AI layer is implemented as a multi-agent system with specialized responsibilities and strict JSON outputs to keep the game runtime deterministic and safe. Each agent is independently prompted and validated, then orchestrated by the game loop to drive distinct parts of the experience (pacing, dialogue, events, and rewards).
+\begin{itemize}[leftmargin=1.1em]
+  \item \textbf{Director Agent:} Generates next event, weather, pacing, and world adjustments. It reacts to world state (danger, corruption, recent events) to ensure tension escalation with occasional calm moments.
+  \item \textbf{NPC Agent:} Generates dialogue plus character state (suspicion, emotion, tone) based on player history and faction trust.
+  \item \textbf{Event Agent:} Selects a prefab id and associated effects for dynamic encounters.
+  \item \textbf{Reward Agent:} Chooses collectible card rewards and unlock conditions based on run outcomes.
+\end{itemize}
+
+\section*{Prompt Engineering Strategies}
+Prompt engineering is intentionally structured, multi-layered, and schema-driven:
+\begin{itemize}[leftmargin=1.1em]
+  \item \textbf{Role anchoring:} Each agent receives a role definition and responsibilities (for example, the Director is told to manage pacing, atmosphere, and objective progression).
+  \item \textbf{Phase-aware guidance:} The Director prompt defines early, mid, and late-run behavior to shape escalation in a controlled way.
+  \item \textbf{Anti-repetition guardrails:} Prompts explicitly instruct the model to avoid repeating recent events and to vary locations.
+  \item \textbf{Output-only constraints:} Prompts require strict JSON with named keys to prevent prose responses and reduce parsing failures.
+\end{itemize}
+
+This prompt design is coupled with strict schema validation to reduce runtime errors and enforce deterministic output shapes.
+
+\section*{Function Calling and Structured Outputs}
+Instead of free-form text, the AI layer uses schema-constrained JSON outputs. In practice, this functions as a function-calling style contract:
+\begin{itemize}[leftmargin=1.1em]
+  \item Each request includes a JSON Schema describing the expected output shape.
+  \item The OpenAI Responses API is used with \texttt{response\_format: json\_schema}, ensuring only valid JSON is returned.
+  \item AJV validates the returned payload before it is accepted by the game runtime.
+\end{itemize}
+
+This strategy provides strong guarantees that AI outputs match the engine's expectations, which is critical for real-time systems. It also minimizes brittle parsing logic in the client.
+
+\section*{RAG (Retrieval-Augmented Generation)}
+The design goal includes user material grounding so that questions and objectives can be aligned with course notes. The intended RAG pipeline is:
+\begin{enumerate}[leftmargin=1.1em]
+  \item \textbf{Ingestion:} User PDFs and notes are parsed into text and chunked into topic-aligned segments.
+  \item \textbf{Embedding:} Chunks are embedded and stored in a vector index (planned for Supabase + pgvector).
+  \item \textbf{Retrieval:} At runtime, the game queries the index using current objective context and player history to retrieve the most relevant chunks.
+  \item \textbf{Grounded generation:} Retrieved context is injected into prompts so the Director or puzzle generation can stay aligned with the user curriculum.
+\end{enumerate}
+
+The current build focuses on the AI Director, NPC, event, and reward agents. The RAG pipeline is designed and aligned with the system architecture, and can be connected to the agent input stage without changing the runtime contract (JSON schemas remain the same).
+
+\section*{Image Models and Visual Assets}
+Two types of visual content are used:
+\begin{itemize}[leftmargin=1.1em]
+  \item \textbf{Card art:} Image generation is produced with ComfyUI, curated into themed sets that unlock characters.
+  \item \textbf{3D characters:} VRM avatars are used for NPCs and the player. Models are loaded with the VRM loader and animated in the runtime.
+\end{itemize}
+
+This split keeps image generation in the offline pipeline (card creation) while the runtime focuses on stable 3D rendering.
+
+\section*{Alignment With Design Goals}
+The technical pipeline reinforces the core design goals in four ways:
+\begin{itemize}[leftmargin=1.1em]
+  \item \textbf{Replayability:} The Director Agent and event system create run-to-run variance in encounters, weather, and pacing.
+  \item \textbf{Tension control:} Phase-aware prompts and world-state feedback allow gradual escalation instead of random spikes.
+  \item \textbf{Objective-driven flow:} JSON outputs provide structured goals that the game loop can schedule and visualize.
+  \item \textbf{Reward motivation:} The Reward Agent supports collectible card unlocks, tying gameplay progress to tangible rewards.
+\end{itemize}
+
+\section*{Course Tools Used}
+The system demonstrates the following course tools in a cohesive pipeline:
+\begin{itemize}[leftmargin=1.1em]
+  \item \textbf{Prompt engineering:} Structured, role-based prompts with phase rules and anti-repetition constraints.
+  \item \textbf{Function calling paradigm:} Schema-constrained JSON outputs validated by AJV, ensuring safe, deterministic AI control.
+  \item \textbf{RAG (planned integration):} A vector retrieval pipeline designed to ground AI output in user materials.
+  \item \textbf{Image models:} Midjourney for card art and VRM models for 3D characters.
+\end{itemize}
+
+\section*{Conclusion}
+This project delivers an AI-driven 3D exploration game with a clear separation of concerns between the runtime engine and AI decision making. The structured output strategy keeps the system stable, while the Director-led design provides pacing, replayability, and tension control. The planned RAG extension ensures the architecture can support curriculum-grounded content without changing the core engine contracts.
+
+\end{document}
